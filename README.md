@@ -59,7 +59,7 @@ Please include:
 
 ## Telegram Channel
 
-Join the FKIAB Telegram channel to get notified as soon as a new release is available: https://t.me/fkiab
+Join the FKIAB Telegram channel to get notified as soon as a new release is available: [t.me/fkiab](https://t.me/+j3i-S8nMy_o0MThk)
 
 ## Disclaimer
 
