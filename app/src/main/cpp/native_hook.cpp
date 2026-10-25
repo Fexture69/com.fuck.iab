@@ -181,7 +181,7 @@ static void startFridaScript(const std::string &packageName, const std::string &
 }
 
 void onLibraryLoaded(const char *name, void *handle) {
-
+//    LOG("onLibraryLoaded: %s", name);
 }
 
 extern "C"

@@ -1298,3 +1298,12 @@ fun Not_connected_to_Xposed_service_(): String {
     }
     return sb.toString()
 }
+
+fun onBind(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(232, 233, 197, 238, 233, 227)
+    for (num in arr) {
+        sb.append((num.xor(135)).toChar())
+    }
+    return sb.toString()
+}
