@@ -1,3 +1,4 @@
+// author: Fexture69
 setTimeout(function () {
     console.log("[*] Starting Ultimate Logic Bypass...");
     Java.perform(function () {

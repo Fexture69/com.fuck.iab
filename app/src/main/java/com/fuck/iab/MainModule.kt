@@ -1,6 +1,8 @@
 package com.fuck.iab
 
+import android.app.Activity
 import android.app.Application
+import android.app.Instrumentation
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
@@ -14,6 +16,7 @@ import android.os.IBinder
 import android.os.IInterface
 import android.os.Parcel
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.edit
 import com.fuck.iab.NativeBridge.startScript
@@ -73,6 +76,8 @@ class MainModule : XposedModule() {
 
     lateinit var app: Application
     val latch = CountDownLatch(1)
+    var customScript = false
+    var scriptAuthor: String? = null
 
     companion object {
 //        const val TAG = "FKIAB"
@@ -155,10 +160,17 @@ class MainModule : XposedModule() {
                     val global = readScriptForPackage(global())
 
                     val script = if (global != null) {
-                        val appScript = readScriptForPackage(packageName)
+                        val apps = readScriptForPackage(packageName)
+                        val (author, appScript) = if (apps == null || apps == "") {
+                            null to ""
+                        } else {
+                            customScript = true
+                            extractAuthor(apps)
+                        }
+                        scriptAuthor = author
                         val userScript = readUserScript()
                         var combined = global.replace(APP_SCRIPT_GOES_HERE(), userScript ?: "")
-                        combined = combined.replace(USER_SCRIPT_GOES_HERE(), appScript ?: "")
+                        combined = combined.replace(USER_SCRIPT_GOES_HERE(), appScript)
                         combined.ifEmpty { null }
                     } else null
 
@@ -192,6 +204,31 @@ class MainModule : XposedModule() {
                     } else {
                         chain.proceed()
                     }
+                }
+
+                val method = Instrumentation::class.java.getDeclaredMethod(
+                    callActivityOnCreate(),
+                    Activity::class.java,
+                    Bundle::class.java
+                )
+
+                hook(method).intercept { chain ->
+                    val activity = chain.getArg(0) as? Activity
+                    val intent = activity?.intent
+
+                    val isLauncher = intent != null &&
+                            intent.action == Intent.ACTION_MAIN &&
+                            intent.hasCategory(Intent.CATEGORY_LAUNCHER)
+
+                    if (activity != null && isLauncher && customScript) {
+                        if (scriptAuthor != null && scriptAuthor != "") {
+                            Toast.makeText(activity, "${Custom_script_by__()}$scriptAuthor", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(activity, Custom_script_loaded(), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    chain.proceed()
                 }
             }
         } catch (e: Exception) {
@@ -469,5 +506,19 @@ class MainModule : XposedModule() {
             null
         }
 //        return getRemotePreferences(fkiab()).getString(user_script_js(), "")
+    }
+
+    fun extractAuthor(content: String): Pair<String, String> {
+        val prefix = ___author__()
+        val newlineIndex = content.indexOf('\n')
+        val firstLine = if (newlineIndex == -1) content else content.substring(0, newlineIndex)
+
+        return if (firstLine.startsWith(prefix)) {
+            val author = firstLine.removePrefix(prefix).trimEnd('\r').trim().substringBefore(' ')
+            val rest = if (newlineIndex == -1) "" else content.substring(newlineIndex + 1)
+            author to rest
+        } else {
+            "" to content
+        }
     }
 }

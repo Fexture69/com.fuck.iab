@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { readdirSync, existsSync, unlinkSync } from "node:fs";
+import { readdirSync, existsSync, unlinkSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,8 +31,17 @@ function compile(packageName) {
     if(packageName == "global") {
         execSync(`npx frida-compile "${input}" -o "${output}" -S -B iife -T none`, { stdio: "inherit" });
     } else {
+        const inputFirstLine = readFileSync(input, "utf8").split("\n", 1)[0];
+        const authorLine = inputFirstLine.startsWith("// author: ") ? inputFirstLine : null;
+        
         execSync(`npx frida-compile "${input}" -o "${output}" -c -S -B iife -T none`, { stdio: "inherit" });
+        
+        if (authorLine !== null) {
+            const compiled = readFileSync(output, "utf8");
+            writeFileSync(output, `${authorLine}\n${compiled}`);
+        }
     }
+
     console.log(`Built: assets/scripts/${packageName}.js`);
 }
 

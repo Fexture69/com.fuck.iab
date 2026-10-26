@@ -1,3 +1,4 @@
+// author: you1mak
 /*
  * Parallel Space Pro v4.0.9162 — Force Pro (Frida)
  * Converted from morphe patch `parallelSpaceForceProPatch`.

@@ -1,3 +1,4 @@
+// author: staleroot
 setTimeout(() => {
     
     Java.perform(() => {

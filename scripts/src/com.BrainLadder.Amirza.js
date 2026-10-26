@@ -1,3 +1,4 @@
+// author: staleroot
 const observer = Process.attachModuleObserver({
     onAdded(module) {
         if (module.name === "libil2cpp.so") {

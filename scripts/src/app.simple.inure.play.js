@@ -1,3 +1,4 @@
+// author: you1mak
 /*
  * Inure App Manager — Unlock Full Version
  * Frida Script  (converted from morphe patches:

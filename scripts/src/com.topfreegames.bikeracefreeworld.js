@@ -1,3 +1,4 @@
+// author: staleroot
 setTimeout(() => {
     Java.perform(() => {
         var ReceiptVerifier = Java.use("com.tfg.libs.billing.google.verifier.ReceiptVerifier");

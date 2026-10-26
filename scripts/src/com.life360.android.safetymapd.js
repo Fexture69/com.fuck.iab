@@ -1,3 +1,4 @@
+// author: Fexture69
 /*
  * Life360 Platinum Unlock – Frida Script (Final, Clean, Crash-Safe)
  * Target package: com.life360.android.safetymapd

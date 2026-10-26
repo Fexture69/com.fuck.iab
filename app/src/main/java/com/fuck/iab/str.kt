@@ -1262,3 +1262,39 @@ fun onBind(): String {
     }
     return sb.toString()
 }
+
+fun Custom_script_loaded(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(239, 217, 223, 216, 195, 193, 140, 223, 207, 222, 197, 220, 216, 140, 192, 195, 205, 200, 201, 200)
+    for (num in arr) {
+        sb.append((num.xor(172)).toChar())
+    }
+    return sb.toString()
+}
+
+fun Custom_script_by__(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(99, 85, 83, 84, 79, 77, 0, 83, 67, 82, 73, 80, 84, 0, 66, 89, 0, 96)
+    for (num in arr) {
+        sb.append((num.xor(32)).toChar())
+    }
+    return sb.toString()
+}
+
+fun callActivityOnCreate(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(235, 233, 228, 228, 201, 235, 252, 225, 254, 225, 252, 241, 199, 230, 203, 250, 237, 233, 252, 237)
+    for (num in arr) {
+        sb.append((num.xor(136)).toChar())
+    }
+    return sb.toString()
+}
+
+fun ___author__(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(1, 1, 14, 79, 91, 90, 70, 65, 92, 20, 14)
+    for (num in arr) {
+        sb.append((num.xor(46)).toChar())
+    }
+    return sb.toString()
+}
