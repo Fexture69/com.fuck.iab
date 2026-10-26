@@ -883,56 +883,11 @@ fun _c(): String {
     return sb.toString()
 }
 
-fun logcat(): String {
+fun logcat__v_tag__s_FKIAB_V_FRIDA_V(): String {
     val sb = StringBuilder()
-    val arr = intArrayOf(131, 128, 136, 140, 142, 155)
+    val arr = intArrayOf(120, 123, 115, 119, 117, 96, 52, 57, 98, 52, 96, 117, 115, 52, 57, 103, 52, 82, 95, 93, 85, 86, 46, 66, 52, 82, 70, 93, 80, 85, 46, 66)
     for (num in arr) {
-        sb.append((num.xor(239)).toChar())
-    }
-    return sb.toString()
-}
-
-fun _v(): String {
-    val sb = StringBuilder()
-    val arr = intArrayOf(98, 57)
-    for (num in arr) {
-        sb.append((num.xor(79)).toChar())
-    }
-    return sb.toString()
-}
-
-fun tag(): String {
-    val sb = StringBuilder()
-    val arr = intArrayOf(176, 165, 163)
-    for (num in arr) {
-        sb.append((num.xor(196)).toChar())
-    }
-    return sb.toString()
-}
-
-fun _s(): String {
-    val sb = StringBuilder()
-    val arr = intArrayOf(156, 194)
-    for (num in arr) {
-        sb.append((num.xor(177)).toChar())
-    }
-    return sb.toString()
-}
-
-fun FKIAB_V(): String {
-    val sb = StringBuilder()
-    val arr = intArrayOf(29, 16, 18, 26, 25, 97, 13)
-    for (num in arr) {
-        sb.append((num.xor(91)).toChar())
-    }
-    return sb.toString()
-}
-
-fun FRIDA_V(): String {
-    val sb = StringBuilder()
-    val arr = intArrayOf(107, 127, 100, 105, 108, 23, 123)
-    for (num in arr) {
-        sb.append((num.xor(45)).toChar())
+        sb.append((num.xor(20)).toChar())
     }
     return sb.toString()
 }

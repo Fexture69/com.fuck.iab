@@ -3,16 +3,11 @@ package fh
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fuck.iab.Error__
-import com.fuck.iab.FKIAB_V
-import com.fuck.iab.FRIDA_V
 import com.fuck.iab.__A_Z__
 import com.fuck.iab._c
-import com.fuck.iab._s
 import com.fuck.iab._s_
-import com.fuck.iab._v
-import com.fuck.iab.logcat
+import com.fuck.iab.logcat__v_tag__s_FKIAB_V_FRIDA_V
 import com.fuck.iab.su
-import com.fuck.iab.tag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -86,12 +81,7 @@ class h : ViewModel() {
                     arrayOf(
                         su(),
                         _c(),
-                        logcat(),
-                        _v(),
-                        tag(),
-                        _s(),
-                        FKIAB_V(),
-                        FRIDA_V()
+                        logcat__v_tag__s_FKIAB_V_FRIDA_V()
                     )
                 )
                 val reader = process.inputStream.bufferedReader()
