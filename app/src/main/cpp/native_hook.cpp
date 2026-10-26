@@ -151,7 +151,7 @@ static void startFridaScript(const std::string &packageName, const std::string &
         });
 
         GError *error = nullptr;
-        GumScriptBackend *backend = gum_script_backend_obtain_v8();
+        GumScriptBackend *backend = gum_script_backend_obtain_qjs();
 
         script = gum_script_backend_create_sync(
                 backend,
