@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.DateFormat
+import java.util.Date
 
 /** Everything the screens show about the module and its scripts. */
 data class UiState(
@@ -232,9 +234,18 @@ class h(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Result of the last sync in this process, or when the cached copy was fetched. */
     fun syncStatusLabel(): String {
-        val status = _state.value.syncStatus
-        return status.ifEmpty { getApplication<Application>().getString(R.string.sync_never) }
+        val state = _state.value
+
+        if (state.syncStatus.isNotEmpty()) return state.syncStatus
+
+        if (state.lastSync == 0L) {
+            return getApplication<Application>().getString(R.string.sync_never)
+        }
+
+        val when_ = DateFormat.getDateTimeInstance().format(Date(state.lastSync))
+        return getApplication<Application>().getString(R.string.sync_last, when_)
     }
 
     override fun onCleared() {
