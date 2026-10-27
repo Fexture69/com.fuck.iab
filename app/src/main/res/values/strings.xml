@@ -39,8 +39,8 @@
     <string name="source_remote">store</string>
     <string name="source_baked">built-in</string>
     <string name="scripts_new_title">New script</string>
-    <string name="scripts_new_hint">Package name</string>
-    <string name="scripts_new_note">A user script is preferred over the built-in and store copies for that package.</string>
+    <string name="scripts_search_hint">Search apps</string>
+    <string name="scripts_no_match">No matching app</string>
     <string name="scripts_not_installed">not installed</string>
 
     <!-- editor -->

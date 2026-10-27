@@ -365,6 +365,20 @@ object ScriptStore {
 
     // ---- app info --------------------------------------------------------------
 
+    /** Packages with a launcher entry, so the new script dialog can offer them. */
+    fun installedApps(context: Context): List<String> {
+        return try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN)
+                .addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+
+            context.packageManager.queryIntentActivities(intent, 0)
+                .mapNotNull { it.activityInfo?.packageName }
+                .distinct()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     fun isInstalled(context: Context, packageName: String): Boolean {
         if (packageName == ALL_APPS) return true
         return try {

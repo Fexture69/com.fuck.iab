@@ -1,14 +1,14 @@
 package fh
 
+import android.app.Dialog
 import android.content.Context
 import android.os.Bundle
-import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -25,14 +25,19 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/** An app the new script dialog can offer. */
+data class AppChoice(val label: String, val packageName: String)
 
 // scripts screen: every known script, with a switch to enable or disable it per app
 class scripts : Fragment() {
 
     private val viewModel: h by activityViewModels()
     private lateinit var adapter: ScriptAdapter
+    private var dialog: Dialog? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -45,15 +50,13 @@ class scripts : Fragment() {
         val empty = v.findViewById<TextView>(R.id.scriptsEmpty)
         val newScript = v.findViewById<ExtendedFloatingActionButton>(R.id.newScriptButton)
 
-        adapter = ScriptAdapter(requireContext()) { script ->
-            startActivity(editor.intent(requireContext(), script.packageName))
-        }
+        adapter = ScriptAdapter(requireContext()) { script -> openEditor(script.packageName) }
+        adapter.onEnabledChanged = { packageName, enabled -> viewModel.setEnabled(packageName, enabled) }
 
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = adapter
 
-        newScript.setOnClickListener { askForPackage() }
-        adapter.onEnabledChanged = { packageName, enabled -> viewModel.setEnabled(packageName, enabled) }
+        newScript.setOnClickListener { pickPackage() }
 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -73,29 +76,111 @@ class scripts : Fragment() {
         viewModel.refresh()
     }
 
-    private fun askForPackage() {
-        val input = TextInputLayout(requireContext())
-        val edit = TextInputEditText(input.context)
-        edit.hint = getString(R.string.scripts_new_hint)
-        edit.inputType = InputType.TYPE_CLASS_TEXT
-        input.addView(edit)
+    override fun onDestroyView() {
+        dialog?.dismiss()
+        dialog = null
+        super.onDestroyView()
+    }
 
-        MaterialAlertDialogBuilder(requireContext())
+    private fun openEditor(packageName: String) {
+        startActivity(editor.intent(requireContext(), packageName))
+    }
+
+    /** Asks which app the new script is for, instead of making the user type a package name. */
+    private fun pickPackage() {
+        val view = layoutInflater.inflate(R.layout.dialog_new_script, null)
+        val input = view.findViewById<TextInputEditText>(R.id.searchInput)
+        val list = view.findViewById<RecyclerView>(R.id.choiceList)
+        val empty = view.findViewById<TextView>(R.id.choiceEmpty)
+
+        val choices = ChoiceAdapter(requireContext()) { packageName ->
+            dialog?.dismiss()
+            openEditor(packageName)
+        }
+
+        list.layoutManager = LinearLayoutManager(requireContext())
+        list.adapter = choices
+
+        dialog = MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.scripts_new_title)
-            .setMessage(R.string.scripts_new_note)
-            .setView(input)
+            .setView(view)
             .setNegativeButton(R.string.action_cancel, null)
-            .setPositiveButton(R.string.action_add) { _, _ ->
-                val packageName = edit.text?.toString()?.trim().orEmpty()
+            .create()
 
-                if (packageName.isEmpty()) {
-                    Toast.makeText(requireContext(), R.string.toast_package_required, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+        val context = requireContext().applicationContext
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val all = withContext(Dispatchers.IO) { candidates(context) }
+
+            fun show(query: String) {
+                val needle = query.trim()
+
+                val filtered = if (needle.isEmpty()) {
+                    all
+                } else {
+                    all.filter { it.label.contains(needle, true) || it.packageName.contains(needle, true) }
                 }
 
-                startActivity(editor.intent(requireContext(), packageName))
+                choices.submitList(filtered)
+                empty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
             }
-            .show()
+
+            show("")
+            input.doAfterTextChanged { show(it?.toString().orEmpty()) }
+        }
+
+        dialog?.show()
+    }
+
+    private fun candidates(context: Context): List<AppChoice> {
+        val state = viewModel.state.value
+        val packages = LinkedHashSet<String>()
+
+        // Apps in scope and apps that already have a script come first.
+        state.hookedApps.forEach { packages += it.packageName }
+        state.scripts.forEach { packages += it.packageName }
+        packages += ScriptStore.installedApps(context)
+        packages -= ScriptStore.ALL_APPS
+
+        return packages
+            .map { AppChoice(ScriptStore.appLabel(context, it), it) }
+            .sortedBy { it.label.lowercase() }
+    }
+}
+
+private class ChoiceAdapter(
+    private val context: Context,
+    private val onClick: (String) -> Unit
+) : ListAdapter<AppChoice, ChoiceAdapter.Holder>(DIFF) {
+
+    class Holder(view: View) : RecyclerView.ViewHolder(view) {
+        val icon: ImageView = view.findViewById(R.id.choiceIcon)
+        val label: TextView = view.findViewById(R.id.choiceLabel)
+        val packageName: TextView = view.findViewById(R.id.choicePackage)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
+        return Holder(LayoutInflater.from(parent.context).inflate(R.layout.item_choice, parent, false))
+    }
+
+    override fun onBindViewHolder(holder: Holder, position: Int) {
+        val item = getItem(position)
+
+        holder.label.text = item.label
+        holder.packageName.text = item.packageName
+        holder.icon.setImageDrawable(
+            ScriptStore.appIcon(context, item.packageName) ?: context.getDrawable(R.drawable.ic_extension)
+        )
+        holder.itemView.setOnClickListener { onClick(item.packageName) }
+    }
+
+    companion object {
+        private val DIFF = object : DiffUtil.ItemCallback<AppChoice>() {
+            override fun areItemsTheSame(oldItem: AppChoice, newItem: AppChoice) =
+                oldItem.packageName == newItem.packageName
+
+            override fun areContentsTheSame(oldItem: AppChoice, newItem: AppChoice) = oldItem == newItem
+        }
     }
 }
 
@@ -143,7 +228,9 @@ private class ScriptAdapter(
         }
 
         holder.meta.text = parts.joinToString(" · ")
-        holder.icon.setImageDrawable(ScriptStore.appIcon(context, item.packageName) ?: context.getDrawable(R.drawable.ic_description))
+        holder.icon.setImageDrawable(
+            ScriptStore.appIcon(context, item.packageName) ?: context.getDrawable(R.drawable.ic_description)
+        )
 
         holder.switch.tag = item
         holder.switch.isChecked = item.enabled
