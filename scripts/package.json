@@ -6,12 +6,15 @@
     "build": "node build.js",
     "build:all": "node build.js --all",
     "build:dist": "node build.js --dist",
+    "vendor": "node vendor.js",
     "publish": "node publish.js"
   },
   "dependencies": {
     "frida-il2cpp-bridge": "^0.14.0"
   },
   "devDependencies": {
-    "frida-compile": "^19.0.5"
+    "esbuild": "^0.25.10",
+    "frida-compile": "^19.0.5",
+    "frida-java-bridge": "^7.0.13"
   }
 }
