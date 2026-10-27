@@ -175,6 +175,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
             runOnUiThread {
                 status.text = "${Connected_to_Xposed_service__()}${service.frameworkName} ${service.frameworkVersionCode}"
                 loadUserScript()
+                viewModel.onServiceAvailable(service)
             }
         } else {
             xposedService = null

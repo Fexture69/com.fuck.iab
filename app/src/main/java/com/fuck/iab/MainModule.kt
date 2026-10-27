@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.widget.Toast
 import com.fuck.iab.NativeBridge.startScript
+import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
@@ -475,6 +476,29 @@ class MainModule : XposedModule() {
     }
 
     private fun readScriptForPackage(packageName: String): String? {
+        return readRemoteScriptForPackage(packageName) ?: readBakedScriptForPackage(packageName)
+    }
+
+    // Scripts synced by the manager app win over the copy baked into the apk, so a script
+    // added after this build reaches the installed module without a new release.
+    private fun readRemoteScriptForPackage(packageName: String): String? {
+        if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return null
+
+        val name = RemoteScripts.fileName(packageName)
+
+        return try {
+            if (listRemoteFiles().none { it == name }) return null
+
+            val pfd = openRemoteFile(name)
+            FileInputStream(pfd.fileDescriptor).use { it.readBytes().toString(Charsets.UTF_8) }
+                .takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+//            log("Failed to read remote script for $packageName: ${e.message}")
+            null
+        }
+    }
+
+    private fun readBakedScriptForPackage(packageName: String): String? {
         val apkPath = this.moduleApplicationInfo.sourceDir
         return try {
             ZipFile(apkPath).use { zip ->

@@ -1298,3 +1298,57 @@ fun ___author__(): String {
     }
     return sb.toString()
 }
+
+fun Sync_scripts(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(88, 114, 101, 104, 43, 120, 104, 121, 98, 123, 127, 120)
+    for (num in arr) {
+        sb.append((num.xor(11)).toChar())
+    }
+    return sb.toString()
+}
+
+fun Syncing_(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(49, 27, 12, 1, 11, 12, 5, 76, 76, 76)
+    for (num in arr) {
+        sb.append((num.xor(98)).toChar())
+    }
+    return sb.toString()
+}
+
+fun Sync_failed_(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(106, 64, 87, 90, 25, 95, 88, 80, 85, 92, 93, 3, 25)
+    for (num in arr) {
+        sb.append((num.xor(57)).toChar())
+    }
+    return sb.toString()
+}
+
+fun Not_synced_yet(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(181, 148, 143, 219, 136, 130, 149, 152, 158, 159, 219, 130, 158, 143)
+    for (num in arr) {
+        sb.append((num.xor(251)).toChar())
+    }
+    return sb.toString()
+}
+
+fun Sync_result(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(147, 185, 174, 163, 165, 164, 250, 224, 229, 164, 224, 164, 175, 183, 174, 172, 175, 161, 164, 165, 164, 236, 224, 229, 164, 224, 178, 165, 173, 175, 182, 165, 164, 236, 224, 229, 164, 224, 180, 175, 180, 161, 172)
+    for (num in arr) {
+        sb.append((num.xor(192)).toChar())
+    }
+    return sb.toString()
+}
+
+fun Scripts_cached_(): String {
+    val sb = StringBuilder()
+    val arr = intArrayOf(137, 185, 168, 179, 170, 174, 169, 250, 185, 187, 185, 178, 191, 190, 224, 250, 255, 190)
+    for (num in arr) {
+        sb.append((num.xor(218)).toChar())
+    }
+    return sb.toString()
+}

@@ -6,8 +6,14 @@ import com.fuck.iab.Error__
 import com.fuck.iab.__A_Z__
 import com.fuck.iab._c
 import com.fuck.iab._s_
+import com.fuck.iab.Not_synced_yet
+import com.fuck.iab.Scripts_cached_
+import com.fuck.iab.Sync_failed_
+import com.fuck.iab.Sync_result
+import com.fuck.iab.Syncing_
 import com.fuck.iab.logcat__v_tag__s_FKIAB_V_FRIDA_V
 import com.fuck.iab.su
+import io.github.libxposed.service.XposedService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -17,6 +23,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class h : ViewModel() {
 
@@ -59,6 +66,78 @@ class h : ViewModel() {
     val saveRequest = _saveRequest.receiveAsFlow()
     fun requestSave(text: String) {
         _saveRequest.trySend(text)
+    }
+
+    private val _syncStatus = MutableStateFlow("")
+    val syncStatus = _syncStatus.asStateFlow()
+
+    private val _syncRunning = MutableStateFlow(false)
+    val syncRunning = _syncRunning.asStateFlow()
+
+    private var serviceHandled = false
+
+    /** Called once the manager app has a framework connection. */
+    fun onServiceAvailable(service: XposedService) {
+        if (serviceHandled) return
+        serviceHandled = true
+
+        viewModelScope.launch {
+            val stale = withContext(Dispatchers.IO) {
+                RemoteScriptSync.isStale(service)
+            }
+
+            if (stale) {
+                sync(service)
+            } else {
+                refreshScriptStatus(service)
+            }
+        }
+    }
+
+    fun refreshScriptStatus(service: XposedService) {
+        if (_syncRunning.value) return
+
+        viewModelScope.launch {
+            val count = withContext(Dispatchers.IO) {
+                RemoteScriptSync.cachedCount(service)
+            }
+
+            if (_syncRunning.value) return@launch
+
+            _syncStatus.value = if (count == 0) {
+                Not_synced_yet()
+            } else {
+                String.format(Locale.US, Scripts_cached_(), count)
+            }
+        }
+    }
+
+    fun sync(service: XposedService) {
+        if (_syncRunning.value) return
+
+        _syncRunning.value = true
+        _syncStatus.value = Syncing_()
+
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    Result.success(RemoteScriptSync.sync(service))
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+
+            _syncRunning.value = false
+
+            _syncStatus.value = result.fold(
+                onSuccess = {
+                    String.format(Locale.US, Sync_result(), it.downloaded, it.removed, it.total)
+                },
+                onFailure = {
+                    "${Sync_failed_()}${it.message ?: it.javaClass.simpleName}"
+                }
+            )
+        }
     }
 
     private val _log_init = Channel<Unit>(Channel.BUFFERED)
