@@ -40,8 +40,31 @@
     <string name="source_baked">built-in</string>
     <string name="scripts_new_title">New script</string>
     <string name="scripts_search_hint">Search apps</string>
+    <string name="scripts_search">Search scripts</string>
     <string name="scripts_no_match">No matching app</string>
+    <string name="scripts_nothing_matches">Nothing matches that search</string>
+    <string name="filter_all">All</string>
     <string name="scripts_not_installed">not installed</string>
+
+    <!-- details -->
+    <string name="detail_source">Source</string>
+    <string name="detail_size">Size</string>
+    <string name="detail_author">Author</string>
+    <string name="detail_file">File</string>
+    <string name="detail_published">Published</string>
+    <string name="detail_synced">Synced</string>
+    <string name="detail_status">Status</string>
+    <string name="detail_checksum">SHA-256</string>
+    <string name="detail_store_note">Fetched from the script store</string>
+    <string name="detail_baked_note">Bundled with the module build</string>
+    <string name="detail_user_note">Saved in the manager app</string>
+    <string name="detail_matches">matches the published manifest</string>
+    <string name="detail_differs">does not match the published manifest</string>
+    <string name="status_enabled">enabled</string>
+    <string name="status_disabled">disabled</string>
+    <string name="status_installed">installed</string>
+    <string name="status_not_installed">not installed</string>
+    <string name="action_edit">Edit script</string>
 
     <!-- editor -->
     <string name="editor_author">Author: %1$s</string>

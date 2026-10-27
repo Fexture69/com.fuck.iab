@@ -48,6 +48,7 @@ object RemoteScripts {
 
     data class Index(
         val fetchedAt: Long,
+        val publishedAt: Long,
         val entries: List<Entry>
     ) {
         val total: Int get() = entries.size
@@ -97,13 +98,26 @@ object RemoteScripts {
 
         return try {
             val json = JSONObject(text)
-            val manifest = json.optJSONObject("manifest")?.toString() ?: return null
+            val manifestJson = json.optJSONObject("manifest") ?: return null
+
             Index(
                 fetchedAt = json.optLong("fetchedAt"),
-                entries = parseManifest(manifest)
+                publishedAt = publishedAt(manifestJson.optString("generatedAt")),
+                entries = parseManifest(manifestJson.toString())
             )
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /** The manifest stamps its build time as an ISO-8601 string. */
+    private fun publishedAt(generatedAt: String): Long {
+        if (generatedAt.isEmpty()) return 0
+
+        return try {
+            java.time.Instant.parse(generatedAt).toEpochMilli()
+        } catch (e: Exception) {
+            0
         }
     }
 

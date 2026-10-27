@@ -24,6 +24,22 @@ data class ScriptInfo(
     val hasUserScript: Boolean
 )
 
+/** Everything the detail sheet can say about one script. */
+data class ScriptDetails(
+    val packageName: String,
+    val source: ScriptSource,
+    val size: Int,
+    val author: String?,
+    val sha256: String?,
+    val file: String?,
+    val matchesManifest: Boolean?,
+    val publishedAt: Long?,
+    val syncedAt: Long?,
+    val hasUserScript: Boolean,
+    val installed: Boolean,
+    val enabled: Boolean
+)
+
 /** A package the module is scoped to, with the state of its script if it has one. */
 data class HookedApp(
     val packageName: String,
@@ -214,6 +230,79 @@ object ScriptStore {
         val firstLine = script.lineSequence().firstOrNull() ?: return null
         if (!firstLine.startsWith("// author: ")) return null
         return firstLine.removePrefix("// author: ").trim().ifEmpty { null }
+    }
+
+    // ---- details ---------------------------------------------------------------
+
+    /** Reads the script that would run for [packageName] and describes where it came from. */
+    fun details(context: Context, service: XposedService?, packageName: String): ScriptDetails {
+        val files = if (service != null) RemoteFiles.list(service) else emptySet()
+        val index = if (service != null) {
+            RemoteScripts.parseIndex(RemoteFiles.read(service, RemoteScripts.INDEX_FILE))
+        } else {
+            null
+        }
+
+        val entry = index?.entries?.firstOrNull { it.packageName == packageName }
+        val bakedText = bakedText(context, packageName)
+
+        val userFile = userFile(packageName)
+        val syncedFile = RemoteScripts.fileName(packageName)
+
+        val source: ScriptSource
+        val text: String?
+        var file: String? = null
+
+        when {
+            service != null && files.contains(userFile) -> {
+                source = ScriptSource.USER
+                file = userFile
+                text = RemoteFiles.read(service, userFile)
+            }
+
+            service != null && files.contains(syncedFile) -> {
+                source = ScriptSource.REMOTE
+                file = syncedFile
+                text = RemoteFiles.read(service, syncedFile)
+            }
+
+            bakedText != null -> {
+                source = ScriptSource.BAKED
+                text = bakedText
+            }
+
+            else -> {
+                source = ScriptSource.BAKED
+                text = null
+            }
+        }
+
+        val checksum = text?.let { sha256(it) }
+
+        return ScriptDetails(
+            packageName = packageName,
+            source = source,
+            size = text?.toByteArray(Charsets.UTF_8)?.size ?: 0,
+            author = text?.let { authorOf(it) },
+            sha256 = checksum,
+            file = file,
+            matchesManifest = if (source == ScriptSource.REMOTE && entry != null && checksum != null) {
+                checksum == entry.sha256
+            } else {
+                null
+            },
+            publishedAt = index?.publishedAt?.takeIf { it > 0 },
+            syncedAt = if (source == ScriptSource.REMOTE) index?.fetchedAt?.takeIf { it > 0 } else null,
+            hasUserScript = files.contains(userFile),
+            installed = isInstalled(context, packageName),
+            enabled = service == null || packageName !in disabledApps(service)
+        )
+    }
+
+    fun sha256(text: String): String {
+        return java.security.MessageDigest.getInstance("SHA-256")
+            .digest(text.toByteArray(Charsets.UTF_8))
+            .joinToString("") { String.format(Locale.US, "%02x", it) }
     }
 
     // ---- content ---------------------------------------------------------------

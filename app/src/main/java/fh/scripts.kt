@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -19,12 +20,19 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.fuck.iab.R
+import com.fuck.iab.ScriptDetails
 import com.fuck.iab.ScriptInfo
+import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
+import java.text.DateFormat
+import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,7 +45,12 @@ class scripts : Fragment() {
 
     private val viewModel: h by activityViewModels()
     private lateinit var adapter: ScriptAdapter
-    private var dialog: Dialog? = null
+    private var pickerDialog: Dialog? = null
+    private var sheet: BottomSheetDialog? = null
+
+    private var query: String = ""
+    private var filter: ScriptSource? = null
+    private var all: List<ScriptInfo> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -49,8 +62,9 @@ class scripts : Fragment() {
         val list = v.findViewById<RecyclerView>(R.id.scriptsList)
         val empty = v.findViewById<TextView>(R.id.scriptsEmpty)
         val newScript = v.findViewById<ExtendedFloatingActionButton>(R.id.newScriptButton)
+        val search = v.findViewById<TextInputEditText>(R.id.searchInput)
 
-        adapter = ScriptAdapter(requireContext()) { script -> openEditor(script.packageName) }
+        adapter = ScriptAdapter(requireContext()) { script -> showDetails(script) }
         adapter.onEnabledChanged = { packageName, enabled -> viewModel.setEnabled(packageName, enabled) }
 
         list.layoutManager = LinearLayoutManager(requireContext())
@@ -58,11 +72,28 @@ class scripts : Fragment() {
 
         newScript.setOnClickListener { pickPackage() }
 
+        search.doAfterTextChanged {
+            query = it?.toString().orEmpty()
+            applyFilters(empty)
+        }
+
+        v.findViewById<ChipGroup>(R.id.filterGroup)
+            .setOnCheckedStateChangeListener { _, checkedIds ->
+                filter = when (checkedIds.firstOrNull()) {
+                    R.id.filterStore -> ScriptSource.REMOTE
+                    R.id.filterBaked -> ScriptSource.BAKED
+                    R.id.filterUser -> ScriptSource.USER
+                    else -> null
+                }
+
+                applyFilters(empty)
+            }
+
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
-                    adapter.submitList(state.scripts)
-                    empty.visibility = if (state.scripts.isEmpty()) View.VISIBLE else View.GONE
+                    all = state.scripts
+                    applyFilters(empty)
                 }
             }
         }
@@ -77,14 +108,117 @@ class scripts : Fragment() {
     }
 
     override fun onDestroyView() {
-        dialog?.dismiss()
-        dialog = null
+        pickerDialog?.dismiss()
+        pickerDialog = null
+        sheet?.dismiss()
+        sheet = null
         super.onDestroyView()
+    }
+
+    private fun applyFilters(empty: TextView) {
+        val needle = query.trim()
+
+        val visible = all.filter { script ->
+            val matchesFilter = filter == null || script.source == filter
+            val matchesQuery = needle.isEmpty() ||
+                    script.packageName.contains(needle, true) ||
+                    ScriptStore.appLabel(requireContext(), script.packageName).contains(needle, true)
+
+            matchesFilter && matchesQuery
+        }
+
+        adapter.submitList(visible)
+        empty.setText(if (all.isEmpty()) R.string.scripts_empty else R.string.scripts_nothing_matches)
+        empty.isVisible = visible.isEmpty()
     }
 
     private fun openEditor(packageName: String) {
         startActivity(editor.intent(requireContext(), packageName))
     }
+
+    // ---- detail sheet ----------------------------------------------------------
+
+    private fun showDetails(script: ScriptInfo) {
+        val view = layoutInflater.inflate(R.layout.sheet_script_details, null)
+        val context = requireContext()
+
+        view.findViewById<ImageView>(R.id.detailIcon).setImageDrawable(
+            ScriptStore.appIcon(context, script.packageName) ?: context.getDrawable(R.drawable.ic_description)
+        )
+        view.findViewById<TextView>(R.id.detailLabel).text = ScriptStore.appLabel(context, script.packageName)
+        view.findViewById<TextView>(R.id.detailPackage).text = script.packageName
+
+        val sheetDialog = BottomSheetDialog(context)
+        sheetDialog.setContentView(view)
+        sheet = sheetDialog
+
+        view.findViewById<MaterialButton>(R.id.detailEdit).setOnClickListener {
+            sheetDialog.dismiss()
+            openEditor(script.packageName)
+        }
+
+        sheetDialog.show()
+
+        val service = g.getService()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val details = withContext(Dispatchers.IO) {
+                ScriptStore.details(context, service, script.packageName)
+            }
+
+            bindDetails(view, details)
+        }
+    }
+
+    private fun bindDetails(view: View, details: ScriptDetails) {
+        val context = requireContext()
+        val dateFormat = DateFormat.getDateTimeInstance()
+
+        val note = when (details.source) {
+            ScriptSource.USER -> R.string.detail_user_note
+            ScriptSource.REMOTE -> R.string.detail_store_note
+            ScriptSource.BAKED -> R.string.detail_baked_note
+        }
+
+        val sourceText = getString(note) + " · " + sourceLabel(context, details.source)
+
+        view.findViewById<TextView>(R.id.detailSourceNote).text = sourceText
+        view.findViewById<TextView>(R.id.detailSource).text = sourceLabel(context, details.source)
+        view.findViewById<TextView>(R.id.detailSize).text = ScriptStore.sizeLabel(details.size)
+
+        view.findViewById<TextView>(R.id.detailAuthor).text = details.author ?: "-"
+        view.findViewById<View>(R.id.detailAuthorRow).isVisible = details.author != null
+
+        view.findViewById<TextView>(R.id.detailFile).text = details.file ?: "-"
+        view.findViewById<View>(R.id.detailFileRow).isVisible = details.file != null
+
+        view.findViewById<TextView>(R.id.detailPublished).text = details.publishedAt?.let {
+            dateFormat.format(Date(it))
+        } ?: "-"
+        view.findViewById<View>(R.id.detailPublishedRow).isVisible = details.publishedAt != null
+
+        view.findViewById<TextView>(R.id.detailSynced).text = details.syncedAt?.let {
+            dateFormat.format(Date(it))
+        } ?: "-"
+        view.findViewById<View>(R.id.detailSyncedRow).isVisible = details.syncedAt != null
+
+        val status = buildList {
+            add(getString(if (details.enabled) R.string.status_enabled else R.string.status_disabled))
+            add(getString(if (details.installed) R.string.status_installed else R.string.status_not_installed))
+            if (details.hasUserScript) add(getString(R.string.source_user))
+        }
+        view.findViewById<TextView>(R.id.detailStatus).text = status.joinToString(" · ")
+
+        view.findViewById<TextView>(R.id.detailChecksum).text = details.sha256 ?: "-"
+
+        val checksumNote = view.findViewById<TextView>(R.id.detailChecksumNote)
+        checksumNote.isVisible = details.matchesManifest != null
+        checksumNote.setText(
+            if (details.matchesManifest == true) R.string.detail_matches else R.string.detail_differs
+        )
+    }
+
+    // ---- new script picker -----------------------------------------------------
 
     /** Asks which app the new script is for, instead of making the user type a package name. */
     private fun pickPackage() {
@@ -94,14 +228,14 @@ class scripts : Fragment() {
         val empty = view.findViewById<TextView>(R.id.choiceEmpty)
 
         val choices = ChoiceAdapter(requireContext()) { packageName ->
-            dialog?.dismiss()
+            pickerDialog?.dismiss()
             openEditor(packageName)
         }
 
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = choices
 
-        dialog = MaterialAlertDialogBuilder(requireContext())
+        pickerDialog = MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.scripts_new_title)
             .setView(view)
             .setNegativeButton(R.string.action_cancel, null)
@@ -110,26 +244,28 @@ class scripts : Fragment() {
         val context = requireContext().applicationContext
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val all = withContext(Dispatchers.IO) { candidates(context) }
+            val candidates = withContext(Dispatchers.IO) { candidates(context) }
 
-            fun show(query: String) {
-                val needle = query.trim()
+            fun show(needle: String) {
+                val trimmed = needle.trim()
 
-                val filtered = if (needle.isEmpty()) {
-                    all
+                val filtered = if (trimmed.isEmpty()) {
+                    candidates
                 } else {
-                    all.filter { it.label.contains(needle, true) || it.packageName.contains(needle, true) }
+                    candidates.filter {
+                        it.label.contains(trimmed, true) || it.packageName.contains(trimmed, true)
+                    }
                 }
 
                 choices.submitList(filtered)
-                empty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+                empty.isVisible = filtered.isEmpty()
             }
 
             show("")
             input.doAfterTextChanged { show(it?.toString().orEmpty()) }
         }
 
-        dialog?.show()
+        pickerDialog?.show()
     }
 
     private fun candidates(context: Context): List<AppChoice> {
