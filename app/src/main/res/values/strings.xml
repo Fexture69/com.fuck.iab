@@ -35,6 +35,15 @@
     <string name="home_running_failed">reload failed</string>
     <string name="home_running_pid">pid %1$d</string>
     <string name="home_running_processes">%1$d processes</string>
+    <string name="action_hot_reload">Hot reload</string>
+    <string name="hot_reload_ok">Reloaded the module in %1$s</string>
+    <string name="hot_reload_unsupported">%1$s cannot be reloaded by this framework</string>
+    <string name="hot_reload_progress">%1$s was already reloading</string>
+    <string name="hot_reload_died">%1$s stopped before it could reload</string>
+    <string name="hot_reload_failed">Reloading %1$s failed: %2$s</string>
+    <string name="hot_reload_failed_unknown">Reloading %1$s failed</string>
+    <string name="hot_reload_none">Nothing to reload</string>
+    <string name="hot_reload_timeout">The framework did not answer in time</string>
     <string name="home_hooked_empty">No apps in the module scope yet.</string>
     <string name="home_script_none">no script</string>
     <string name="home_script_disabled">disabled</string>

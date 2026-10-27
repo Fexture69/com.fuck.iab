@@ -13,6 +13,8 @@ import com.fuck.iab._c
 import com.fuck.iab._s_
 import com.fuck.iab.logcat__v_tag__s_FKIAB_V_FRIDA_V
 import com.fuck.iab.su
+import io.github.libxposed.service.HookedTarget
+import io.github.libxposed.service.HotReloadResult
 import io.github.libxposed.service.XposedService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.DateFormat
 import java.util.Date
 
@@ -286,6 +289,79 @@ class h(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Asks the framework to reload the module in the processes that are still running an
+     * old build of it. The result arrives through the service callback.
+     */
+    fun hotReload(packageName: String) {
+        val service = currentService ?: return
+
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+
+            val targets = withContext(Dispatchers.IO) {
+                try {
+                    service.runningTargets.filter { target ->
+                        target.processName?.substringBefore(':') == packageName &&
+                            target.state == HookedTarget.State.STALE
+                    }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+
+            if (targets.isEmpty()) {
+                _messages.trySend(app.getString(R.string.hot_reload_none))
+                return@launch
+            }
+
+            val results = Channel<String>(Channel.UNLIMITED)
+
+            val callback = XposedService.HotReloadCallback { target, result ->
+                val label = target.processName ?: packageName
+
+                results.trySend(
+                    when (result.status()) {
+                        HotReloadResult.Status.SUCCEEDED -> app.getString(R.string.hot_reload_ok, label)
+                        HotReloadResult.Status.UNSUPPORTED -> app.getString(R.string.hot_reload_unsupported, label)
+                        HotReloadResult.Status.IN_PROGRESS -> app.getString(R.string.hot_reload_progress, label)
+                        HotReloadResult.Status.PROCESS_DIED -> app.getString(R.string.hot_reload_died, label)
+                        else -> result.message()?.let { app.getString(R.string.hot_reload_failed, label, it) }
+                            ?: app.getString(R.string.hot_reload_failed_unknown, label)
+                    }
+                )
+            }
+
+            withContext(Dispatchers.IO) {
+                targets.forEach { target ->
+                    try {
+                        service.hotReloadModule(target, null, callback)
+                    } catch (e: Exception) {
+                        results.trySend(
+                            app.getString(
+                                R.string.hot_reload_failed,
+                                target.processName ?: packageName,
+                                e.message ?: e.javaClass.simpleName
+                            )
+                        )
+                    }
+                }
+            }
+
+            val collected = mutableListOf<String>()
+
+            withTimeoutOrNull(HOT_RELOAD_TIMEOUT_MS) {
+                repeat(targets.size) { collected += results.receive() }
+            }
+
+            _messages.trySend(
+                collected.joinToString("; ").ifEmpty { app.getString(R.string.hot_reload_timeout) }
+            )
+
+            refreshRunning()
+        }
+    }
+
     fun setEnabled(packageName: String, enabled: Boolean) {
         val service = currentService ?: return
 
@@ -317,5 +393,6 @@ class h(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val RUNNING_POLL_MS = 5000L
+        const val HOT_RELOAD_TIMEOUT_MS = 15000L
     }
 }

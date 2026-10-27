@@ -26,6 +26,7 @@ import com.fuck.iab.RunningState
 import com.fuck.iab.ScriptInfo
 import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
 // home screen: module state, counters and the apps in scope
@@ -50,7 +51,7 @@ class home : Fragment() {
         val hookedEmpty = v.findViewById<TextView>(R.id.hookedEmpty)
         val hookedList = v.findViewById<RecyclerView>(R.id.hookedList)
 
-        adapter = AppAdapter(requireContext())
+        adapter = AppAdapter(requireContext()) { packageName -> viewModel.hotReload(packageName) }
         hookedList.layoutManager = LinearLayoutManager(requireContext())
         hookedList.adapter = adapter
 
@@ -88,7 +89,10 @@ class home : Fragment() {
     }
 }
 
-private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, AppAdapter.Holder>(DIFF) {
+private class AppAdapter(
+    private val context: Context,
+    private val onHotReload: (String) -> Unit
+) : ListAdapter<HookedApp, AppAdapter.Holder>(DIFF) {
 
     private val icons = LruCache<String, Drawable>(64)
 
@@ -98,6 +102,7 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
         val packageName: TextView = view.findViewById(R.id.appPackage)
         val running: TextView = view.findViewById(R.id.appRunning)
         val state: TextView = view.findViewById(R.id.appState)
+        val hotReload: MaterialButton = view.findViewById(R.id.appHotReload)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
@@ -114,6 +119,11 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
         val running = runningLabel(app.running)
         holder.running.text = running
         holder.running.isVisible = running != null
+
+        // Only a process the framework reports as stale can be reloaded.
+        val stale = app.running.any { it.state == RunningState.STALE }
+        holder.hotReload.isVisible = stale
+        holder.hotReload.setOnClickListener { onHotReload(app.packageName) }
 
         holder.icon.setImageDrawable(iconFor(app.packageName))
     }
