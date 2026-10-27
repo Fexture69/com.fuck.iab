@@ -1,29 +1,34 @@
-/*
- * KeyMapper Premium Unlock - Frida script
- * Ported from the Morphe bytecode patch.
- *
- * Hooks:
- *   1. j05.p(CustomerInfo, t65):Z        -> always true
- *   2. j05.c(t65, q61):Object            -> returns vz5(Boolean.TRUE)
- *   3. z80.j(Object):hx5  (when called from j05.<init>)
- *                                        -> seeds premium entitlements
- *                                           {t65.l, t65.m} into v65, wrapped
- *                                           in vz5 then ax5
- *
- * Usage:
- *   frida -U -f <com.keymapper.app.package> -l keymapper_premium.js --no-pause
- */
+// author: you1mak, staleroot
 
 Java.perform(function () {
-    console.log("[*] KeyMapper Premium patch starting...");
 
-    // ---------- Resolve obfuscated classes / fields ----------
-    const j05         = Java.use("j05");
-    const t65         = Java.use("t65");
-    const vz5         = Java.use("vz5");
-    const v65         = Java.use("v65");
-    const ax5         = Java.use("ax5");
-    const z80         = Java.use("z80");
+    const FKIAB = findFactoryByClassName("com.fuck.iab.NativeBridge")
+
+    const NativeBridge = FKIAB.use("com.fuck.iab.NativeBridge")
+
+    const bridge = NativeBridge.dexKitBridge.value
+
+    console.log("[*] KeyMapper Premium patch starting...")
+
+
+    const j05_classData = findClassByStrings(bridge, ["goog_dctxGEarLcMxLQElyvkZgWeHMbU"])
+    console.log("j05_classData: " + j05_classData)
+    const j05_name = j05_classData.getName()
+    console.log("j05_name: " + j05_name)
+    const t65_name = findClassByStrings(bridge, ["assistant_trigger", "floating_buttons"], ["support_coffee", "support_lunch"]).getName()
+    console.log("t65_name: " + t65_name)
+    const t65         = Java.use(t65_name)
+    console.log("t65: " + t65)
+    const vz5         = Java.use(findClassByStrings(bridge, ["Success(value=", ")"]).getName())
+    console.log("vz5: " + vz5)
+    const v65         = Java.use(findClassByStrings(bridge, ["RevenueCatState(entitlements=", ", offeringMetadata="]).getName())
+    console.log("v65: " + v65)
+    const ax5         = Java.use(findClassByStrings(bridge, ["Data(data=", ")"]).getName())
+    console.log("ax5: " + ax5)
+    const z80_classData = findClassByStrings(bridge, ["CLIENT_TELEMETRY", "onToggleRecordClick", "onToggleRecordClick()V", "onRefreshDeviceInfoClick"])
+    console.log("z80_classData: " + z80_classData)
+    const z80         = Java.use(z80_classData.getName())
+    console.log("z80: " + z80)
 
     const HashSet     = Java.use("java.util.HashSet");
     const HashMap     = Java.use("java.util.HashMap");
@@ -31,50 +36,39 @@ Java.perform(function () {
     const ExceptionCls= Java.use("java.lang.Exception");
     const Log         = Java.use("android.util.Log");
 
-    // ---------- Patch 1: EntitlementCheckFingerprint ----------
-    // Lj05;->p(Lcom/revenuecat/purchases/CustomerInfo;Lt65;)Z
-    j05.p.overload(
-        "com.revenuecat.purchases.CustomerInfo",
-        "t65"
-    ).implementation = function (_customerInfo, _entitlement) {
+    
+    const j05_p_methodData = findMethodInClassByReturnType(j05_classData, "boolean")
+    console.log("j05_p_methodData: " + j05_p_methodData)
+
+    const j05_p = getMethodOverloadFromMethodData(j05_p_methodData)
+    console.log("j05_p: " + j05_p)
+
+    j05_p.implementation = function (_customerInfo, _entitlement) {
         return true;
     };
-    console.log("[+] Hooked j05.p  -> returns true (entitlement granted)");
 
-    // ---------- Patch 2: CustomerInfoQueryFingerprint ----------
-    // Lj05;->c(Lt65;Lq61;)Ljava/lang/Object;
-    // Body replaced with: return new vz5(Boolean.TRUE);
-    j05.c.overload("t65", "q61").implementation = function (_ent, _q61) {
+    const j05_c = getMethodOverloadFromMethodData(findMethodInClassByInvokedMethodNames(j05_classData, ["getSharedInstance", "valueOf", "awaitCustomerInfo$default", j05_p_methodData.getName()]))
+
+    console.log("j05_c: " + j05_c)
+
+    j05_c.implementation = function (_ent, _q61) {
         return vz5.$new(BooleanCls.TRUE.value);
     };
-    console.log("[+] Hooked j05.c  -> returns vz5(Boolean.TRUE)");
 
-    // ---------- Patch 3: PurchaseStateSeedFingerprint ----------
-    // Injected at start of Lj05.<init>(Context, h81):
-    //   HashSet{t65.l, t65.m} -> HashMap{} -> v65 -> vz5 -> ax5
-    // Seeding happens via Lz80;->j(Object) which is called by the
-    // original constructor.  We intercept that call when it comes from
-    // Lj05.<init> and swap the argument with our premium seed.
-    function buildPremiumSeed() {
-        const set = HashSet.$new();
-        set.add(t65.l.value);               // entitlement #1
-        set.add(t65.m.value);               // entitlement #2
+    const z80_j = getMethodOverloadFromMethodData(findMethodInClassByParamTypes(z80_classData, ["java.lang.Object"]))
 
-        const map   = HashMap.$new();
-        const v65o  = v65.$new(set, map);   // v65(Set, Map)
-        const vz5o  = vz5.$new(v65o);       // vz5(Object)
-        return ax5.$new(vz5o);              // ax5(Object)
-    }
+    console.log("z80_j: " + z80_j)
 
-    const originalZ80J = z80.j.overload("java.lang.Object");
-    z80.j.overload("java.lang.Object").implementation = function (obj) {
+    z80_j.implementation = function (obj) {
         const stack = Log.getStackTraceString(ExceptionCls.$new());
-        if (stack.indexOf("j05.<init>") !== -1) {
-            obj = buildPremiumSeed();
+        if (stack.indexOf(j05_name + ".<init>") !== -1) {
+            const set = HashSet.$new();
+            set.add(t65.$new("ASSISTANT_TRIGGER", 0, "assistant_trigger"));
+            set.add(t65.$new("FLOATING_BUTTONS", 1, "floating_buttons"))
+            return z80_j.call(z80, ax5.$new(vz5.$new(v65.$new(set, HashMap.$new()))));
         }
-        return originalZ80J.call(z80, obj);
+        return z80_j.call(z80, obj);
     };
-    console.log("[+] Hooked z80.j  -> seeds premium state for j05.<init>");
 
     console.log("[*] KeyMapper Premium patch applied.");
 });

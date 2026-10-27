@@ -3,24 +3,16 @@ package com.fuck.iab
 import android.app.Activity
 import android.app.Application
 import android.app.Instrumentation
-import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.os.Binder
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.os.IInterface
-import android.os.Parcel
-import android.util.Log
 import android.widget.Toast
-import androidx.annotation.RequiresApi
-import androidx.core.content.edit
 import com.fuck.iab.NativeBridge.startScript
-import fh.d
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
@@ -222,7 +214,7 @@ class MainModule : XposedModule() {
 
                     if (activity != null && isLauncher && customScript) {
                         if (scriptAuthor != null && scriptAuthor != "") {
-                            Toast.makeText(activity, "${Custom_script_by__()}$scriptAuthor", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(activity, "${Custom_script_by_()}$scriptAuthor", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(activity, Custom_script_loaded(), Toast.LENGTH_SHORT).show()
                         }
@@ -514,7 +506,7 @@ class MainModule : XposedModule() {
         val firstLine = if (newlineIndex == -1) content else content.substring(0, newlineIndex)
 
         return if (firstLine.startsWith(prefix)) {
-            val author = firstLine.removePrefix(prefix).trimEnd('\r').trim().substringBefore(' ')
+            val author = firstLine.removePrefix(prefix).trimEnd('\r').trim()/*.substringBefore(' ')*/
             val rest = if (newlineIndex == -1) "" else content.substring(newlineIndex + 1)
             author to rest
         } else {

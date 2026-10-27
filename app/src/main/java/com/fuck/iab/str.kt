@@ -1272,9 +1272,9 @@ fun Custom_script_loaded(): String {
     return sb.toString()
 }
 
-fun Custom_script_by__(): String {
+fun Custom_script_by_(): String {
     val sb = StringBuilder()
-    val arr = intArrayOf(99, 85, 83, 84, 79, 77, 0, 83, 67, 82, 73, 80, 84, 0, 66, 89, 0, 96)
+    val arr = intArrayOf(99, 85, 83, 84, 79, 77, 0, 83, 67, 82, 73, 80, 84, 0, 66, 89, 0)
     for (num in arr) {
         sb.append((num.xor(32)).toChar())
     }
