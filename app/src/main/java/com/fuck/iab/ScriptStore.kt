@@ -40,12 +40,25 @@ data class ScriptDetails(
     val enabled: Boolean
 )
 
+/** How the module code inside a running process relates to the installed module. */
+enum class RunningState { CURRENT, STALE, RELOADING, FAILED }
+
+/** One process of a hooked app in which the module is loaded right now. */
+data class RunningProcess(
+    val processName: String,
+    val pid: Int,
+    val state: RunningState
+)
+
 /** A package the module is scoped to, with the state of its script if it has one. */
 data class HookedApp(
     val packageName: String,
     val label: String,
-    val script: ScriptInfo?
-)
+    val script: ScriptInfo?,
+    val running: List<RunningProcess> = emptyList()
+) {
+    val isRunning: Boolean get() = running.isNotEmpty()
+}
 
 /** Files in the module's shared data directory, which is how the module and this app talk. */
 object RemoteFiles {
@@ -446,10 +459,52 @@ object ScriptStore {
 
     fun hookedApps(context: Context, service: XposedService, scripts: List<ScriptInfo>): List<HookedApp> {
         val byPackage = scripts.associateBy { it.packageName }
+        val running = runningProcesses(service)
 
         return scope(service)
-            .map { packageName -> HookedApp(packageName, appLabel(context, packageName), byPackage[packageName]) }
+            .map { packageName ->
+                HookedApp(
+                    packageName = packageName,
+                    label = appLabel(context, packageName),
+                    script = byPackage[packageName],
+                    running = running[packageName].orEmpty()
+                )
+            }
             .sortedBy { it.label.lowercase(Locale.US) }
+    }
+
+    /**
+     * Processes the framework currently has the module loaded in, keyed by package name.
+     * A target only exposes its process name, so the part before ":" is the package.
+     */
+    fun runningProcesses(service: XposedService): Map<String, List<RunningProcess>> {
+        val targets = try {
+            service.runningTargets
+        } catch (e: Exception) {
+            return emptyMap()
+        }
+
+        val result = mutableMapOf<String, MutableList<RunningProcess>>()
+
+        for (target in targets) {
+            val processName = target.processName ?: continue
+            val packageName = processName.substringBefore(':')
+
+            result.getOrPut(packageName) { mutableListOf() }
+                .add(RunningProcess(processName, target.pid, stateOf(target.state)))
+        }
+
+        // Processes with a fresher state first, then by pid, so the list is stable.
+        return result.mapValues { (_, processes) -> processes.sortedBy { it.pid } }
+    }
+
+    private fun stateOf(state: io.github.libxposed.service.HookedTarget.State?): RunningState {
+        return when (state) {
+            io.github.libxposed.service.HookedTarget.State.STALE -> RunningState.STALE
+            io.github.libxposed.service.HookedTarget.State.RELOADING -> RunningState.RELOADING
+            io.github.libxposed.service.HookedTarget.State.FAILED -> RunningState.FAILED
+            else -> RunningState.CURRENT
+        }
     }
 
     // ---- app info --------------------------------------------------------------

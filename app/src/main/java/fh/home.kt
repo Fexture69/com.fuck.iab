@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -20,6 +21,8 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.fuck.iab.HookedApp
 import com.fuck.iab.R
+import com.fuck.iab.RunningProcess
+import com.fuck.iab.RunningState
 import com.fuck.iab.ScriptInfo
 import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
@@ -41,6 +44,7 @@ class home : Fragment() {
         val serviceStatus = v.findViewById<TextView>(R.id.serviceStatus)
         val syncStatus = v.findViewById<TextView>(R.id.syncStatus)
         val hookedCount = v.findViewById<TextView>(R.id.hookedCount)
+        val hookedLabel = v.findViewById<TextView>(R.id.hookedLabel)
         val installedCount = v.findViewById<TextView>(R.id.installedCount)
         val enabledCount = v.findViewById<TextView>(R.id.enabledCount)
         val hookedEmpty = v.findViewById<TextView>(R.id.hookedEmpty)
@@ -59,9 +63,17 @@ class home : Fragment() {
 
                     syncStatus.text = viewModel.syncStatusLabel()
                     hookedCount.text = state.scope.toString()
+
+                    val running = state.hookedApps.count { it.isRunning }
+                    hookedLabel.text = if (running > 0) {
+                        getString(R.string.home_hooked_running, running)
+                    } else {
+                        getString(R.string.home_hooked)
+                    }
+
                     installedCount.text = state.scripts.size.toString()
                     enabledCount.text = state.enabled.toString()
-                    hookedEmpty.visibility = if (state.hookedApps.isEmpty()) View.VISIBLE else View.GONE
+                    hookedEmpty.isVisible = state.hookedApps.isEmpty()
                     adapter.submitList(state.hookedApps)
                 }
             }
@@ -84,6 +96,7 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
         val icon: ImageView = view.findViewById(R.id.appIcon)
         val label: TextView = view.findViewById(R.id.appLabel)
         val packageName: TextView = view.findViewById(R.id.appPackage)
+        val running: TextView = view.findViewById(R.id.appRunning)
         val state: TextView = view.findViewById(R.id.appState)
     }
 
@@ -98,6 +111,10 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
         holder.packageName.text = app.packageName
         holder.state.text = stateLabel(app.script)
 
+        val running = runningLabel(app.running)
+        holder.running.text = running
+        holder.running.isVisible = running != null
+
         holder.icon.setImageDrawable(iconFor(app.packageName))
     }
 
@@ -105,6 +122,26 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
         if (script == null) return context.getString(R.string.home_script_none)
         if (!script.enabled) return context.getString(R.string.home_script_disabled)
         return sourceLabel(context, script.source)
+    }
+
+    /** "running · pid 1234", or null when the module is not loaded in that app. */
+    private fun runningLabel(processes: List<RunningProcess>): String? {
+        val first = processes.firstOrNull() ?: return null
+
+        val state = when (first.state) {
+            RunningState.CURRENT -> R.string.home_running
+            RunningState.STALE -> R.string.home_running_stale
+            RunningState.RELOADING -> R.string.home_running_reloading
+            RunningState.FAILED -> R.string.home_running_failed
+        }
+
+        val detail = if (processes.size == 1) {
+            context.getString(R.string.home_running_pid, first.pid)
+        } else {
+            context.getString(R.string.home_running_processes, processes.size)
+        }
+
+        return context.getString(state) + " · " + detail
     }
 
     private fun iconFor(packageName: String): Drawable? {

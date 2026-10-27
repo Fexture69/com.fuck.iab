@@ -70,6 +70,7 @@
                         android:textColor="?attr/colorPrimary" />
 
                     <TextView
+                        android:id="@+id/hookedLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center"

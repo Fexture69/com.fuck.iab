@@ -16,6 +16,7 @@ import com.fuck.iab.su
 import io.github.libxposed.service.XposedService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -159,6 +160,7 @@ class h(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Reloads the whole picture: scripts, scope and the processes the module is loaded in. */
     fun refresh() {
         val service = currentService
 
@@ -233,6 +235,56 @@ class h(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var runningPoll: Job? = null
+
+    /**
+     * The running indicator only matters while home is on screen, so polling follows
+     * the visible page instead of running in the background.
+     */
+    fun setHomeVisible(visible: Boolean) {
+        if (!visible) {
+            runningPoll?.cancel()
+            runningPoll = null
+            return
+        }
+
+        if (runningPoll != null) return
+
+        runningPoll = viewModelScope.launch {
+            while (isActive) {
+                refreshRunning()
+                delay(RUNNING_POLL_MS)
+            }
+        }
+    }
+
+    /** Cheap refresh of just the running processes, for the live indicator on home. */
+    fun refreshRunning() {
+        val service = currentService ?: return
+
+        viewModelScope.launch {
+            val running = withContext(Dispatchers.IO) {
+                try {
+                    ScriptStore.runningProcesses(service)
+                } catch (e: Exception) {
+                    emptyMap()
+                }
+            }
+
+            _state.update { state ->
+                if (state.hookedApps.isEmpty()) {
+                    state
+                } else {
+                    state.copy(
+                        hookedApps = state.hookedApps.map { app ->
+                            app.copy(running = running[app.packageName].orEmpty())
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     fun setEnabled(packageName: String, enabled: Boolean) {
         val service = currentService ?: return
 
@@ -258,6 +310,11 @@ class h(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         logcatJob?.cancel()
+        runningPoll?.cancel()
         super.onCleared()
+    }
+
+    private companion object {
+        const val RUNNING_POLL_MS = 5000L
     }
 }

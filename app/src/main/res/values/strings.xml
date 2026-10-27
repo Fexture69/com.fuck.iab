@@ -28,6 +28,13 @@
     <string name="home_sync">Script store</string>
     <string name="home_never">never</string>
     <string name="home_hooked_title">Hooked apps</string>
+    <string name="home_hooked_running">Hooked apps · %1$d running</string>
+    <string name="home_running">running</string>
+    <string name="home_running_stale">running an old build</string>
+    <string name="home_running_reloading">reloading</string>
+    <string name="home_running_failed">reload failed</string>
+    <string name="home_running_pid">pid %1$d</string>
+    <string name="home_running_processes">%1$d processes</string>
     <string name="home_hooked_empty">No apps in the module scope yet.</string>
     <string name="home_script_none">no script</string>
     <string name="home_script_disabled">disabled</string>

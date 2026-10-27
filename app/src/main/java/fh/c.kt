@@ -65,10 +65,12 @@ class c : AppCompatActivity(), g.ServiceStateListener {
 
                 titleFor(position)
                 invalidateOptionsMenu()
+                viewModel.setHomeVisible(position == PAGE_HOME)
             }
         })
 
         titleFor(PAGE_HOME)
+        viewModel.setHomeVisible(true)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -132,6 +134,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
 
     override fun onStop() {
         g.removeServiceStateListener(this)
+        viewModel.setHomeVisible(false)
         super.onStop()
     }
 
