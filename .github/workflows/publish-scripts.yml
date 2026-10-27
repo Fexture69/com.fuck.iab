@@ -4,7 +4,7 @@ name: Publish scripts
 # so this publishes the compiled store on its own whenever scripts change.
 on:
   push:
-    branches: [ dev, main ]
+    branches: [ dev, main, 'feat/**' ]
     paths:
       - 'scripts/src/**'
       - 'scripts/build.js'

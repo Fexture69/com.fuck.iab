@@ -68,3 +68,5 @@ const raw = web.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)$/);
 
 console.log(`Published ${manifest.scripts.length} script(s) to ${remote}/${branch}`);
 console.log(`Manifest: ${raw ? `https://raw.githubusercontent.com/${raw[1]}/${branch}/manifest.json` : `${web}/raw/${branch}/manifest.json`}`);
+
+// Publishing is also run by .github/workflows/publish-scripts.yml.
