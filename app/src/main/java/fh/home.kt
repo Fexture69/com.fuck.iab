@@ -162,6 +162,13 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
     }
 }
 
+/** "covers 3 apps", or "not in scope" when the module never hooks that package. */
+fun coverageLabel(context: Context, coveredApps: Int, inScope: Boolean): String {
+    if (!inScope) return context.getString(R.string.scripts_not_in_scope)
+    if (coveredApps == 1) return context.getString(R.string.scripts_covers_one)
+    return context.getString(R.string.scripts_covers_many, coveredApps)
+}
+
 fun sourceLabel(context: Context, source: ScriptSource): String {
     return when (source) {
         ScriptSource.USER -> context.getString(R.string.source_user)

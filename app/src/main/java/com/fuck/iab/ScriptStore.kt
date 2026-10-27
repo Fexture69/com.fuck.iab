@@ -21,7 +21,11 @@ data class ScriptInfo(
     val size: Int,
     val enabled: Boolean,
     val installed: Boolean,
-    val hasUserScript: Boolean
+    val hasUserScript: Boolean,
+    /** Apps this script runs in: every app in scope for the all-apps script, one for a package. */
+    val coveredApps: Int,
+    /** Whether the module hooks this package at all, which is what makes the script run. */
+    val inScope: Boolean
 )
 
 /** Everything the detail sheet can say about one script. */
@@ -37,7 +41,9 @@ data class ScriptDetails(
     val syncedAt: Long?,
     val hasUserScript: Boolean,
     val installed: Boolean,
-    val enabled: Boolean
+    val enabled: Boolean,
+    val coveredApps: Int,
+    val inScope: Boolean
 )
 
 /** How the module code inside a running process relates to the installed module. */
@@ -146,7 +152,7 @@ object ScriptStore {
 
     // ---- inventory -------------------------------------------------------------
 
-    fun inventory(context: Context, service: XposedService?): List<ScriptInfo> {
+    fun inventory(context: Context, service: XposedService?, scope: Set<String> = emptySet()): List<ScriptInfo> {
         val files = if (service != null) RemoteFiles.list(service) else emptySet()
         val remote = if (service != null) remoteEntries(service) else emptyList()
         val remoteByPackage = remote.associateBy { it.packageName }
@@ -197,6 +203,8 @@ object ScriptStore {
                 }
             }
 
+            val inScope = packageName == ALL_APPS || scope.contains(packageName)
+
             ScriptInfo(
                 packageName = packageName,
                 source = source,
@@ -204,7 +212,9 @@ object ScriptStore {
                 size = size,
                 enabled = !disabled.contains(packageName),
                 installed = isInstalled(context, packageName),
-                hasUserScript = user != null
+                hasUserScript = user != null,
+                coveredApps = if (packageName == ALL_APPS) scope.size else if (inScope) 1 else 0,
+                inScope = inScope
             )
         }
     }
@@ -258,6 +268,7 @@ object ScriptStore {
 
         val entry = index?.entries?.firstOrNull { it.packageName == packageName }
         val bakedText = bakedText(context, packageName)
+        val scoped = if (service != null) scope(service) else emptyList()
 
         val userFile = userFile(packageName)
         val syncedFile = RemoteScripts.fileName(packageName)
@@ -308,7 +319,9 @@ object ScriptStore {
             syncedAt = if (source == ScriptSource.REMOTE) index?.fetchedAt?.takeIf { it > 0 } else null,
             hasUserScript = files.contains(userFile),
             installed = isInstalled(context, packageName),
-            enabled = service == null || packageName !in disabledApps(service)
+            enabled = service == null || packageName !in disabledApps(service),
+            coveredApps = if (packageName == ALL_APPS) scoped.size else 1,
+            inScope = packageName == ALL_APPS || scoped.contains(packageName)
         )
     }
 
@@ -457,11 +470,16 @@ object ScriptStore {
         }
     }
 
-    fun hookedApps(context: Context, service: XposedService, scripts: List<ScriptInfo>): List<HookedApp> {
+    fun hookedApps(
+        context: Context,
+        service: XposedService,
+        scripts: List<ScriptInfo>,
+        scope: List<String> = scope(service)
+    ): List<HookedApp> {
         val byPackage = scripts.associateBy { it.packageName }
         val running = runningProcesses(service)
 
-        return scope(service)
+        return scope
             .map { packageName ->
                 HookedApp(
                     packageName = packageName,

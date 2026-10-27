@@ -187,11 +187,12 @@ class h(application: Application) : AndroidViewModel(application) {
 
     private fun load(service: XposedService?): Loaded {
         val context = getApplication<Application>()
-        val scripts = ScriptStore.inventory(context, service)
+        val scope = if (service != null) ScriptStore.scope(service) else emptyList()
+        val scripts = ScriptStore.inventory(context, service, scope.toSet())
 
         return Loaded(
             scripts = scripts,
-            apps = if (service != null) ScriptStore.hookedApps(context, service, scripts) else emptyList(),
+            apps = if (service != null) ScriptStore.hookedApps(context, service, scripts, scope) else emptyList(),
             cached = if (service != null) RemoteScriptSync.cachedCount(service) else 0,
             lastSync = if (service != null) RemoteScriptSync.lastSync(service) else 0
         )

@@ -184,6 +184,8 @@ class scripts : Fragment() {
 
         view.findViewById<TextView>(R.id.detailSourceNote).text = sourceText
         view.findViewById<TextView>(R.id.detailSource).text = sourceLabel(context, details.source)
+        view.findViewById<TextView>(R.id.detailCovers).text =
+            coverageLabel(context, details.coveredApps, details.inScope)
         view.findViewById<TextView>(R.id.detailSize).text = ScriptStore.sizeLabel(details.size)
 
         view.findViewById<TextView>(R.id.detailAuthor).text = details.author ?: "-"
@@ -332,6 +334,7 @@ private class ScriptAdapter(
         val label: TextView = view.findViewById(R.id.scriptLabel)
         val packageName: TextView = view.findViewById(R.id.scriptPackage)
         val meta: TextView = view.findViewById(R.id.scriptMeta)
+        val covers: TextView = view.findViewById(R.id.scriptCovers)
         val switch: MaterialSwitch = view.findViewById(R.id.scriptSwitch)
     }
 
@@ -364,6 +367,7 @@ private class ScriptAdapter(
         }
 
         holder.meta.text = parts.joinToString(" · ")
+        holder.covers.text = coverageLabel(context, item.coveredApps, item.inScope)
         holder.icon.setImageDrawable(
             ScriptStore.appIcon(context, item.packageName) ?: context.getDrawable(R.drawable.ic_description)
         )
