@@ -3,6 +3,7 @@ name: Build APK
 on:
   push:
     branches: [ dev, main, 'feat/**' ]
+    tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
 
@@ -12,8 +13,11 @@ permissions:
 env:
   # Source build of the gumjs devkit linked into libnativehook.so. Frida's own
   # prebuilt devkit includes V8, which is why build-frida-gum.sh builds a diet
-  # QuickJS-only devkit instead.
-  FRIDA_VERSION: "17.24.3"
+  # QuickJS-only devkit from a frida-gum checkout instead.
+  GUM_VERSION: "17.24.3"
+  # frida-gum 17.x only accepts NDK r29; the app itself is built with the NDK
+  # pinned in app/build.gradle, which is newer, so both are installed.
+  GUM_NDK_VERSION: "29.0.14206865"
   NDK_VERSION: "30.0.16248370"
   CMAKE_VERSION: "3.22.1"
 
@@ -31,26 +35,31 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - uses: android-actions/setup-android@v3
-
       - name: Install NDK and CMake
-        run: sdkmanager --install "ndk;$NDK_VERSION" "cmake;$CMAKE_VERSION"
+        run: |
+          # The runner image ships cmdline-tools but no NDK matching the version
+          # app/build.gradle pins, so install it and accept the licences. AGP can
+          # then fetch any other missing component on its own.
+          SDKMANAGER="$(ls "$ANDROID_SDK_ROOT"/cmdline-tools/*/bin/sdkmanager | tail -1)"
+          echo "sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install "ndk;$NDK_VERSION" "ndk;$GUM_NDK_VERSION" "cmake;$CMAKE_VERSION"
 
       - name: Cache frida-gum devkit
         id: frida-cache
         uses: actions/cache@v4
         with:
           path: app/src/main/libs
-          key: frida-gum-${{ env.FRIDA_VERSION }}-${{ hashFiles('build-frida-gum.sh') }}
+          key: frida-gum-${{ env.GUM_VERSION }}-${{ hashFiles('build-frida-gum.sh') }}
 
       - name: Build frida-gum devkit
         if: steps.frida-cache.outputs.cache-hit != 'true'
         run: |
-          export ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}/ndk/$NDK_VERSION"
+          export ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}/ndk/$GUM_NDK_VERSION"
           echo "NDK: $ANDROID_NDK_ROOT"
-          git clone --depth 1 --branch "$FRIDA_VERSION" --recurse-submodules \
-            https://github.com/frida/frida.git frida
-          ./build-frida-gum.sh frida .
+          git clone --depth 1 --branch "$GUM_VERSION" --recurse-submodules \
+            https://github.com/frida/frida-gum.git frida-gum
+          bash ./build-frida-gum.sh frida-gum .
           du -sh app/src/main/libs/*
 
       - name: Check devkit files
@@ -73,14 +82,79 @@ jobs:
           npm run vendor
           npm run build:all
 
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${KEYSTORE_BASE64:?Repository secret KEYSTORE_BASE64 is not set}"
+          : "${KEYSTORE_PASSWORD:?Repository secret KEYSTORE_PASSWORD is not set}"
+          : "${KEY_ALIAS:?Repository secret KEY_ALIAS is not set}"
+          : "${KEY_PASSWORD:?Repository secret KEY_PASSWORD is not set}"
+
+          KEYSTORE_PATH="$RUNNER_TEMP/fkiab-ci.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+
+          {
+            echo "KEYSTORE_FILE=$KEYSTORE_PATH"
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "KEY_ALIAS=$KEY_ALIAS"
+            echo "KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - name: Grant execution permission
         run: chmod +x ./gradlew
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --console=plain
+      - name: Build APKs
+        run: ./gradlew assembleDebug assembleRelease --console=plain
+
+      - name: Verify release APK signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUILD_TOOLS="$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -n 1)"
+          EXPECTED_SHA256="$(keytool -list -v -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD" \
+            -alias "$KEY_ALIAS" | grep -m 1 'SHA256:' | awk '{print $2}' | tr -d ':' | tr 'A-F' 'a-f')"
+
+          for apk in app/build/outputs/apk/release/*-release.apk; do
+            SIGNED_SHA256="$("$BUILD_TOOLS/apksigner" verify --print-certs "$apk" \
+              | grep -m 1 'SHA-256 digest' | awk '{print $NF}' | tr 'A-F' 'a-f')"
+            if [ "$SIGNED_SHA256" != "$EXPECTED_SHA256" ]; then
+              echo "::error::$apk is not signed with the repository key (got $SIGNED_SHA256, expected $EXPECTED_SHA256)."
+              exit 1
+            fi
+            echo "signed: $apk"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fkiab-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: fkiab-apks
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: apk
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: fkiab-apks
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: dist/release/*-release.apk
+          generate_release_notes: true
