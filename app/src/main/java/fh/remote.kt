@@ -1,9 +1,8 @@
 package fh
 
+import com.fuck.iab.RemoteFiles
 import com.fuck.iab.RemoteScripts
 import io.github.libxposed.service.XposedService
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -21,19 +20,20 @@ object RemoteScriptSync {
 
     private const val TIMEOUT_MS = 20000
 
-    /** How long a cached index is trusted before the manager app syncs on its own. */
+    /** How long a cached manifest is trusted before the manager app syncs on its own. */
     const val FRESH_MS = 12 * 60 * 60 * 1000L
 
     data class Result(val downloaded: Int, val removed: Int, val total: Int)
 
     fun sync(service: XposedService): Result {
-        val manifest = RemoteScripts.parseManifest(String(download(RemoteScripts.MANIFEST_URL), Charsets.UTF_8))
+        val manifestText = String(download(RemoteScripts.MANIFEST_URL), Charsets.UTF_8)
+        val manifest = RemoteScripts.parseManifest(manifestText)
 
         if (manifest.isEmpty()) {
             throw IllegalStateException("published manifest lists no scripts")
         }
 
-        val present = service.listRemoteFiles().toSet()
+        val present = RemoteFiles.list(service)
         val wanted = HashSet<String>(manifest.size)
         var downloaded = 0
 
@@ -41,7 +41,7 @@ object RemoteScriptSync {
             val name = RemoteScripts.fileName(entry.packageName)
             wanted += name
 
-            val cached = if (present.contains(name)) read(service, name) else null
+            val cached = if (present.contains(name)) RemoteFiles.read(service, name) else null
             if (cached != null && cached.isNotEmpty() && sha256(cached) == entry.sha256) continue
 
             val bytes = download(entry.url)
@@ -50,39 +50,40 @@ object RemoteScriptSync {
                 throw IOException("checksum mismatch for ${entry.packageName}")
             }
 
-            write(service, name, bytes)
+            RemoteFiles.write(service, name, String(bytes, Charsets.UTF_8))
             downloaded++
         }
 
         var removed = 0
         for (name in present) {
             if (!RemoteScripts.isScriptFile(name) || wanted.contains(name)) continue
-            if (service.deleteRemoteFile(name)) removed++
+            if (RemoteFiles.delete(service, name)) removed++
         }
 
-        write(
+        RemoteFiles.write(
             service,
             RemoteScripts.INDEX_FILE,
-            RemoteScripts.indexJson(System.currentTimeMillis(), manifest.size).toByteArray(Charsets.UTF_8)
+            RemoteScripts.indexJson(System.currentTimeMillis(), manifestText)
         )
 
         return Result(downloaded, removed, manifest.size)
     }
 
+    /** Entries of the manifest that was downloaded last, empty when nothing is cached. */
+    fun manifest(service: XposedService): List<RemoteScripts.Entry> {
+        return RemoteScripts.parseIndex(RemoteFiles.read(service, RemoteScripts.INDEX_FILE))?.entries
+            ?: emptyList()
+    }
+
     /** Number of scripts currently cached in the shared data directory. */
     fun cachedCount(service: XposedService): Int {
-        return try {
-            service.listRemoteFiles().count { RemoteScripts.isScriptFile(it) }
-        } catch (e: Exception) {
-            0
-        }
+        return RemoteFiles.list(service).count { RemoteScripts.isScriptFile(it) }
     }
 
     /** Time of the last successful sync, or 0 when nothing has been synced yet. */
     fun lastSync(service: XposedService): Long {
         return try {
-            val bytes = read(service, RemoteScripts.INDEX_FILE) ?: return 0
-            RemoteScripts.parseIndex(String(bytes, Charsets.UTF_8))?.fetchedAt ?: 0
+            RemoteScripts.parseIndex(RemoteFiles.read(service, RemoteScripts.INDEX_FILE))?.fetchedAt ?: 0
         } catch (e: Exception) {
             0
         }
@@ -115,22 +116,7 @@ object RemoteScriptSync {
         }
     }
 
-    private fun read(service: XposedService, name: String): ByteArray? {
-        return try {
-            val pfd = service.openRemoteFile(name)
-            FileInputStream(pfd.fileDescriptor).use { it.readBytes() }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun write(service: XposedService, name: String, bytes: ByteArray) {
-        val pfd = service.openRemoteFile(name)
-        FileOutputStream(pfd.fileDescriptor).use { out ->
-            out.channel.truncate(0)
-            out.write(bytes)
-        }
-    }
+    private fun sha256(text: String): String = sha256(text.toByteArray(Charsets.UTF_8))
 
     private fun sha256(bytes: ByteArray): String {
         return MessageDigest.getInstance("SHA-256")

@@ -476,7 +476,43 @@ class MainModule : XposedModule() {
     }
 
     private fun readScriptForPackage(packageName: String): String? {
-        return readRemoteScriptForPackage(packageName) ?: readBakedScriptForPackage(packageName)
+        // A script switched off in the manager app must not run for that app.
+        if (isScriptDisabled(packageName)) return null
+
+        return readUserScriptForPackage(packageName)
+            ?: readRemoteScriptForPackage(packageName)
+            ?: readBakedScriptForPackage(packageName)
+    }
+
+    private fun isScriptDisabled(packageName: String): Boolean {
+        if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return false
+
+        return try {
+            val disabled = getRemotePreferences(fuck_iab())
+                .getStringSet(RemoteScripts.DISABLED_SCRIPTS_KEY, emptySet()) ?: return false
+
+            disabled.contains(packageName) || disabled.contains(global())
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // A script written in the manager app wins over the synced and the built-in copy.
+    private fun readUserScriptForPackage(packageName: String): String? {
+        if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return null
+
+        val name = RemoteScripts.userFileName(packageName)
+
+        return try {
+            if (listRemoteFiles().none { it == name }) return null
+
+            val pfd = openRemoteFile(name)
+            FileInputStream(pfd.fileDescriptor).use { it.readBytes().toString(Charsets.UTF_8) }
+                .takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+//            log("Failed to read the user script for $packageName: ${e.message}")
+            null
+        }
     }
 
     // Scripts synced by the manager app win over the copy baked into the apk, so a script

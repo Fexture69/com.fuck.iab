@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The script list shows the name and icon of the apps it covers. -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <application
         android:name="fh.g"
@@ -27,6 +31,14 @@
             android:name="fh.d"
             android:exported="true"
             android:theme="@style/theme" />
+        <activity
+            android:name="fh.editor"
+            android:exported="false"
+            android:parentActivityName="fh.c" />
+        <activity
+            android:name="fh.logs"
+            android:exported="false"
+            android:parentActivityName="fh.c" />
     </application>
 
 </manifest>

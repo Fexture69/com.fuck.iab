@@ -6,6 +6,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.fuck.iab.ScriptStore;
+
 import io.github.libxposed.service.XposedService;
 import io.github.libxposed.service.XposedServiceHelper;
 
@@ -22,6 +24,9 @@ public class g extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        ScriptStore.applyTheme(this);
+
         XposedServiceHelper.registerListener(new XposedServiceHelper.OnServiceListener() {
             @Override
             public void onServiceBind(XposedService bound) {

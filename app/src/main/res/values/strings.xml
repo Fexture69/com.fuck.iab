@@ -1,7 +1,77 @@
 <resources>
     <string name="app_name">FKIAB</string>
     <string name="description">An Xposed module for hooking and customizing in-app billing functionality.</string>
+
     <string name="save">Save</string>
     <string name="clear_log">Clear Log</string>
     <string name="auto_scroll">Auto scroll</string>
+
+    <!-- navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_scripts">Scripts</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- actions -->
+    <string name="action_refresh">Refresh scripts</string>
+    <string name="action_new_script">New script</string>
+    <string name="action_revert">Remove user script</string>
+    <string name="action_add">Add</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- home -->
+    <string name="home_service">Xposed service</string>
+    <string name="home_not_connected">Not connected to the Xposed service.</string>
+    <string name="home_hooked">Hooked apps</string>
+    <string name="home_installed">Installed scripts</string>
+    <string name="home_enabled">Enabled scripts</string>
+    <string name="home_sync">Script store</string>
+    <string name="home_never">never</string>
+    <string name="home_hooked_title">Hooked apps</string>
+    <string name="home_hooked_empty">No apps in the module scope yet.</string>
+    <string name="home_script_none">no script</string>
+    <string name="home_script_disabled">disabled</string>
+
+    <!-- scripts -->
+    <string name="scripts_empty">No scripts yet. Pull to refresh or create one.</string>
+    <string name="scripts_all_apps">All apps</string>
+    <string name="source_user">user</string>
+    <string name="source_remote">store</string>
+    <string name="source_baked">built-in</string>
+    <string name="scripts_new_title">New script</string>
+    <string name="scripts_new_hint">Package name</string>
+    <string name="scripts_new_note">A user script is preferred over the built-in and store copies for that package.</string>
+    <string name="scripts_not_installed">not installed</string>
+
+    <!-- editor -->
+    <string name="editor_author">Author: %1$s</string>
+    <string name="editor_source">Source: %1$s</string>
+    <string name="editor_revert_note">The user copy of this script is deleted, so the built-in or store copy is used again.</string>
+
+    <!-- settings -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_logs">Logs</string>
+    <string name="settings_logs_summary">Frida output of the hooked apps</string>
+    <string name="settings_module">Module</string>
+    <string name="settings_framework">Framework</string>
+    <string name="settings_store">Script store</string>
+    <string name="settings_last_sync">Last sync</string>
+    <string name="settings_cached">Cached scripts</string>
+    <string name="settings_sync_now">Sync scripts now</string>
+    <string name="settings_scope">Apps in scope</string>
+    <string name="logs_title">Logs</string>
+
+    <!-- messages -->
+    <string name="toast_saved">Script saved</string>
+    <string name="toast_reverted">User script removed</string>
+    <string name="toast_not_connected">Not connected to the Xposed service.</string>
+    <string name="toast_package_required">Enter a package name</string>
+    <string name="toast_synced">Scripts refreshed</string>
+    <string name="syncing">Syncing...</string>
+    <string name="sync_failed">Sync failed: %1$s</string>
+    <string name="sync_result">Synced: %1$d downloaded, %2$d removed, %3$d total</string>
+    <string name="sync_never">Not synced yet</string>
 </resources>

@@ -1,48 +1,28 @@
 package fh
 
 import android.os.Bundle
-import android.system.Os
-import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
-import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
-import com.fuck.iab.Connected_to_Xposed_service__
-import com.fuck.iab.Error__
-import com.fuck.iab.Log
-import com.fuck.iab.Not_connected_to_Xposed_service_
-import com.fuck.iab.Not_connected_to_framework
 import com.fuck.iab.R
-import com.fuck.iab.Script
-import com.fuck.iab.Script_saved
-import com.fuck.iab.user_script_js
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
-import fh.g.removeServiceStateListener
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.github.libxposed.service.XposedService
-import kotlinx.coroutines.launch
-import java.io.FileInputStream
-import java.io.FileOutputStream
 
-
-// main activity
+// main activity: home, scripts and settings behind a bottom navigation bar
 class c : AppCompatActivity(), g.ServiceStateListener {
 
-    private var xposedService: XposedService? = null
     private lateinit var viewPager: ViewPager2
-    private lateinit var status: TextView
-
-    private lateinit var dummyStBg: View
+    private lateinit var bottomNav: BottomNavigationView
+    private lateinit var toolbar: MaterialToolbar
 
     private val viewModel: h by viewModels()
 
@@ -50,112 +30,83 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        dummyStBg = findViewById(R.id.dummy_st_bg)
-
-        val root = findViewById<View?>(R.id.root)!!
+        val root = findViewById<View>(R.id.root)
         root.post {
             val rootWindowInsets = ViewCompat.getRootWindowInsets(root) ?: return@post
             val systemBars = rootWindowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            root.setPadding(
-                systemBars.left, systemBars.top,
-                systemBars.right, systemBars.bottom
-            )
-            val lp: ViewGroup.LayoutParams = dummyStBg.layoutParams
-            lp.height = systemBars.top
-            dummyStBg.setLayoutParams(lp)
+            root.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
         }
 
-        status = findViewById(R.id.scriptInputStatus)
-        status.text = Not_connected_to_Xposed_service_()
-
+        toolbar = findViewById(R.id.toolbar)
         viewPager = findViewById(R.id.viewPager)
-        viewPager.adapter = object : FragmentStateAdapter(this) {
+        bottomNav = findViewById(R.id.bottomNav)
 
-            override fun getItemCount() = 2
+        viewPager.adapter = ScreensAdapter(this)
+        viewPager.offscreenPageLimit = PAGE_COUNT
 
-            override fun createFragment(position: Int): Fragment {
-                return when (position) {
-                    0 -> e()
-                    else -> f()
-                }
-            }
+        bottomNav.setOnItemSelectedListener { item ->
+            viewPager.setCurrentItem(pageOf(item.itemId), true)
+            true
         }
 
-        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
-        tabLayout.addTab(tabLayout.newTab().setText(Script()))
-        tabLayout.addTab(tabLayout.newTab().setText(Log()))
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                val itemId = itemOf(position)
+                if (bottomNav.selectedItemId != itemId) {
+                    bottomNav.selectedItemId = itemId
+                }
 
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) {
+                titleFor(position)
+                invalidateOptionsMenu()
             }
-
-            override fun onTabUnselected(tab: TabLayout.Tab) {}
-            override fun onTabReselected(tab: TabLayout.Tab) {}
         })
 
-        TabLayoutMediator(
-            tabLayout,
-            viewPager
-        ) { tab, position ->
-            tab.text = if (position == 0) Script() else Log()
-        }.attach()
+        titleFor(PAGE_HOME)
+    }
 
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.logInit.collect {
-                    viewModel.startLogcatStreaming()
-                }
-            }
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        // Refreshing the installed scripts belongs to the scripts screen.
+        menu.findItem(R.id.action_refresh)?.isVisible = viewPager.currentItem == PAGE_SCRIPTS
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_refresh) {
+            viewModel.sync()
+            return true
         }
 
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.saveRequest.collect { text ->
-                    saveUserScript(text)
-                }
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun titleFor(position: Int) {
+        toolbar.setTitle(
+            when (position) {
+                PAGE_SCRIPTS -> R.string.nav_scripts
+                PAGE_SETTINGS -> R.string.nav_settings
+                else -> R.string.app_name
             }
+        )
+    }
+
+    private fun pageOf(itemId: Int): Int {
+        return when (itemId) {
+            R.id.nav_scripts -> PAGE_SCRIPTS
+            R.id.nav_settings -> PAGE_SETTINGS
+            else -> PAGE_HOME
         }
     }
 
-    private fun loadUserScript() {
-        if (viewModel.scriptLoaded) return
-        val service = xposedService ?: return
-        try {
-            val pfd = service.openRemoteFile(user_script_js())
-//            val path = Os.readlink("/proc/self/fd/" + pfd.fd)
-            val content = FileInputStream(pfd.fileDescriptor).use {
-                it.readBytes().toString(Charsets.UTF_8)
-            }
-//            val content = service.getRemotePreferences(fkiab()).getString(user_script_js(), "")!!
-//            viewModel.setScriptTextStatus("loaded from: $path")
-            viewModel.scriptLoaded = true
-            viewModel.setScriptText(content)
-        } catch (e: Exception) {
-//            viewModel.setScriptTextStatus("Error while loading script: ${e.message ?: ""}")
-        }
-    }
-
-    private fun saveUserScript(text: String) {
-        val service = xposedService
-        if (service == null) {
-            Toast.makeText(this, Not_connected_to_framework(), Toast.LENGTH_SHORT).show()
-            return
-        }
-        try {
-            val bytes = text.toByteArray(Charsets.UTF_8)
-            val pfd = service.openRemoteFile(user_script_js())
-//            val path = Os.readlink("/proc/self/fd/" + pfd.fd)
-//            viewModel.setScriptTextStatus("Saved to: $path")
-            FileOutputStream(pfd.fileDescriptor).use { fos ->
-                fos.channel.truncate(0)
-                fos.write(bytes)
-            }
-//            service.getRemotePreferences(fkiab()).edit(commit = true) {
-//                putString(user_script_js(), text)
-//            }
-            Toast.makeText(this, Script_saved(), Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "${Error__()}${e.message}", Toast.LENGTH_SHORT).show()
+    private fun itemOf(position: Int): Int {
+        return when (position) {
+            PAGE_SCRIPTS -> R.id.nav_scripts
+            PAGE_SETTINGS -> R.id.nav_settings
+            else -> R.id.nav_home
         }
     }
 
@@ -165,23 +116,32 @@ class c : AppCompatActivity(), g.ServiceStateListener {
     }
 
     override fun onStop() {
-        removeServiceStateListener(this)
+        g.removeServiceStateListener(this)
         super.onStop()
     }
 
     override fun onServiceStateChanged(service: XposedService?) {
-        if (service != null) {
-            xposedService = service
-            runOnUiThread {
-                status.text = "${Connected_to_Xposed_service__()}${service.frameworkName} ${service.frameworkVersionCode}"
-                loadUserScript()
-                viewModel.onServiceAvailable(service)
-            }
-        } else {
-            xposedService = null
-            runOnUiThread {
-                status.text = Not_connected_to_Xposed_service_()
+        viewModel.attachService(service)
+    }
+
+    private class ScreensAdapter(activity: FragmentActivity) : FragmentStateAdapter(activity) {
+
+        override fun getItemCount() = PAGE_COUNT
+
+        override fun createFragment(position: Int): Fragment {
+            return when (position) {
+                PAGE_SCRIPTS -> scripts()
+                PAGE_SETTINGS -> settings()
+                else -> home()
             }
         }
+    }
+
+    companion object {
+        const val PAGE_HOME = 0
+        const val PAGE_SCRIPTS = 1
+        const val PAGE_SETTINGS = 2
+
+        private const val PAGE_COUNT = 3
     }
 }

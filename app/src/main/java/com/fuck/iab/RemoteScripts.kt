@@ -25,10 +25,14 @@ object RemoteScripts {
 
     const val MANIFEST_URL = "${BASE_URL}manifest.json"
 
-    /** Stores which manifest version is cached locally. Never treated as a script. */
+    /** Cached copy of the published manifest. Never treated as a script. */
     const val INDEX_FILE = "rs_index"
 
+    /** Package names whose scripts must not run, stored in the module preferences. */
+    const val DISABLED_SCRIPTS_KEY = "disabled_scripts"
+
     private const val FILE_PREFIX = "rs_"
+    private const val USER_PREFIX = "us_"
     private const val SCRIPTS_PATH = "scripts/"
     private const val FORMAT = 1
 
@@ -44,9 +48,10 @@ object RemoteScripts {
 
     data class Index(
         val fetchedAt: Long,
-        val total: Int,
-        val source: String
-    )
+        val entries: List<Entry>
+    ) {
+        val total: Int get() = entries.size
+    }
 
     fun parseManifest(text: String): List<Entry> {
         val json = JSONObject(text)
@@ -80,11 +85,10 @@ object RemoteScripts {
         return entries
     }
 
-    fun indexJson(fetchedAt: Long, total: Int): String {
+    fun indexJson(fetchedAt: Long, manifestText: String): String {
         return JSONObject().apply {
             put("fetchedAt", fetchedAt)
-            put("total", total)
-            put("source", MANIFEST_URL)
+            put("manifest", JSONObject(manifestText))
         }.toString()
     }
 
@@ -93,26 +97,31 @@ object RemoteScripts {
 
         return try {
             val json = JSONObject(text)
+            val manifest = json.optJSONObject("manifest")?.toString() ?: return null
             Index(
                 fetchedAt = json.optLong("fetchedAt"),
-                total = json.optInt("total"),
-                source = json.optString("source")
+                entries = parseManifest(manifest)
             )
         } catch (e: Exception) {
             null
         }
     }
 
-    /** Flat file name of the cached copy of [packageName] in the shared data directory. */
-    fun fileName(packageName: String): String {
+    /** Flat file name of the synced copy of [packageName] in the shared data directory. */
+    fun fileName(packageName: String): String = flatName(FILE_PREFIX, packageName)
+
+    /** Flat file name of the user copy of [packageName], which overrides the synced one. */
+    fun userFileName(packageName: String): String = flatName(USER_PREFIX, packageName)
+
+    fun isScriptFile(name: String): Boolean {
+        return name.startsWith(FILE_PREFIX) && name != INDEX_FILE
+    }
+
+    private fun flatName(prefix: String, packageName: String): String {
         val safe = buildString(packageName.length) {
             packageName.forEach { append(if (it.isLetterOrDigit()) it else '_') }
         }
 
-        return "$FILE_PREFIX${safe}_${String.format(Locale.US, "%08x", packageName.hashCode())}"
-    }
-
-    fun isScriptFile(name: String): Boolean {
-        return name.startsWith(FILE_PREFIX) && name != INDEX_FILE
+        return "$prefix${safe}_${String.format(Locale.US, "%08x", packageName.hashCode())}"
     }
 }

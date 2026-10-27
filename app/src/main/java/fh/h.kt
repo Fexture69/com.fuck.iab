@@ -1,16 +1,16 @@
 package fh
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fuck.iab.Error__
+import com.fuck.iab.HookedApp
+import com.fuck.iab.R
+import com.fuck.iab.ScriptInfo
+import com.fuck.iab.ScriptStore
 import com.fuck.iab.__A_Z__
 import com.fuck.iab._c
 import com.fuck.iab._s_
-import com.fuck.iab.Not_synced_yet
-import com.fuck.iab.Scripts_cached_
-import com.fuck.iab.Sync_failed_
-import com.fuck.iab.Sync_result
-import com.fuck.iab.Syncing_
 import com.fuck.iab.logcat__v_tag__s_FKIAB_V_FRIDA_V
 import com.fuck.iab.su
 import io.github.libxposed.service.XposedService
@@ -20,12 +20,27 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
-class h : ViewModel() {
+/** Everything the screens show about the module and its scripts. */
+data class UiState(
+    val connected: Boolean = false,
+    val framework: String = "",
+    val scripts: List<ScriptInfo> = emptyList(),
+    val hookedApps: List<HookedApp> = emptyList(),
+    val syncing: Boolean = false,
+    val syncStatus: String = "",
+    val lastSync: Long = 0L,
+    val cached: Int = 0
+) {
+    val enabled: Int get() = scripts.count { it.enabled }
+    val scope: Int get() = hookedApps.size
+}
+
+class h(application: Application) : AndroidViewModel(application) {
 
     private val logsArray = ArrayDeque<String>()
     private val _logs = Channel<String>(100)
@@ -50,93 +65,8 @@ class h : ViewModel() {
     }
 
     fun clearLogs() {
-        return synchronized(logsArray) {
+        synchronized(logsArray) {
             logsArray.clear()
-        }
-    }
-
-    var scriptLoaded = false
-    private val _scriptText = MutableStateFlow("")
-    val scriptText = _scriptText.asStateFlow()
-    fun setScriptText(text: String) {
-        _scriptText.value = text
-    }
-
-    private val _saveRequest = Channel<String>(Channel.BUFFERED)
-    val saveRequest = _saveRequest.receiveAsFlow()
-    fun requestSave(text: String) {
-        _saveRequest.trySend(text)
-    }
-
-    private val _syncStatus = MutableStateFlow("")
-    val syncStatus = _syncStatus.asStateFlow()
-
-    private val _syncRunning = MutableStateFlow(false)
-    val syncRunning = _syncRunning.asStateFlow()
-
-    private var serviceHandled = false
-
-    /** Called once the manager app has a framework connection. */
-    fun onServiceAvailable(service: XposedService) {
-        if (serviceHandled) return
-        serviceHandled = true
-
-        viewModelScope.launch {
-            val stale = withContext(Dispatchers.IO) {
-                RemoteScriptSync.isStale(service)
-            }
-
-            if (stale) {
-                sync(service)
-            } else {
-                refreshScriptStatus(service)
-            }
-        }
-    }
-
-    fun refreshScriptStatus(service: XposedService) {
-        if (_syncRunning.value) return
-
-        viewModelScope.launch {
-            val count = withContext(Dispatchers.IO) {
-                RemoteScriptSync.cachedCount(service)
-            }
-
-            if (_syncRunning.value) return@launch
-
-            _syncStatus.value = if (count == 0) {
-                Not_synced_yet()
-            } else {
-                String.format(Locale.US, Scripts_cached_(), count)
-            }
-        }
-    }
-
-    fun sync(service: XposedService) {
-        if (_syncRunning.value) return
-
-        _syncRunning.value = true
-        _syncStatus.value = Syncing_()
-
-        viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                try {
-                    Result.success(RemoteScriptSync.sync(service))
-                } catch (e: Exception) {
-                    Result.failure(e)
-                }
-            }
-
-            _syncRunning.value = false
-
-            _syncStatus.value = result.fold(
-                onSuccess = {
-                    String.format(Locale.US, Sync_result(), it.downloaded, it.removed, it.total)
-                },
-                onFailure = {
-                    "${Sync_failed_()}${it.message ?: it.javaClass.simpleName}"
-                }
-            )
         }
     }
 
@@ -145,7 +75,6 @@ class h : ViewModel() {
     fun logInit() {
         _log_init.trySend(Unit)
     }
-
 
     private var logcatJob: Job? = null
 
@@ -191,6 +120,122 @@ class h : ViewModel() {
         }
     }
 
+    // ---- module and script state ----------------------------------------------
+
+    private val _state = MutableStateFlow(UiState())
+    val state = _state.asStateFlow()
+
+    private var currentService: XposedService? = null
+    private var autoSynced = false
+
+    /** Called when the framework connection comes up or goes away. */
+    fun attachService(service: XposedService?) {
+        currentService = service
+
+        _state.update {
+            it.copy(
+                connected = service != null,
+                framework = service?.let { s -> "${s.frameworkName} ${s.frameworkVersionCode}" } ?: ""
+            )
+        }
+
+        if (service == null) {
+            autoSynced = false
+            _state.update { it.copy(scripts = emptyList(), hookedApps = emptyList(), cached = 0) }
+            return
+        }
+
+        viewModelScope.launch {
+            val stale = withContext(Dispatchers.IO) { RemoteScriptSync.isStale(service) }
+
+            if (stale && !autoSynced) {
+                autoSynced = true
+                sync()
+            } else {
+                refresh()
+            }
+        }
+    }
+
+    fun refresh() {
+        val service = currentService
+
+        viewModelScope.launch {
+            val loaded = withContext(Dispatchers.IO) { load(service) }
+
+            _state.update {
+                it.copy(
+                    scripts = loaded.scripts,
+                    hookedApps = loaded.apps,
+                    cached = loaded.cached,
+                    lastSync = loaded.lastSync
+                )
+            }
+        }
+    }
+
+    private class Loaded(
+        val scripts: List<ScriptInfo>,
+        val apps: List<HookedApp>,
+        val cached: Int,
+        val lastSync: Long
+    )
+
+    private fun load(service: XposedService?): Loaded {
+        val context = getApplication<Application>()
+        val scripts = ScriptStore.inventory(context, service)
+
+        return Loaded(
+            scripts = scripts,
+            apps = if (service != null) ScriptStore.hookedApps(context, service, scripts) else emptyList(),
+            cached = if (service != null) RemoteScriptSync.cachedCount(service) else 0,
+            lastSync = if (service != null) RemoteScriptSync.lastSync(service) else 0
+        )
+    }
+
+    /** Pulls the published scripts, then reloads what the screens show. */
+    fun sync() {
+        val service = currentService ?: return
+        if (_state.value.syncing) return
+
+        _state.update { it.copy(syncing = true, syncStatus = getApplication<Application>().getString(R.string.syncing)) }
+
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    Result.success(RemoteScriptSync.sync(service))
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+
+            val status = result.fold(
+                onSuccess = {
+                    getApplication<Application>().getString(R.string.sync_result, it.downloaded, it.removed, it.total)
+                },
+                onFailure = {
+                    getApplication<Application>().getString(R.string.sync_failed, it.message ?: it.javaClass.simpleName)
+                }
+            )
+
+            _state.update { it.copy(syncing = false, syncStatus = status) }
+            refresh()
+        }
+    }
+
+    fun setEnabled(packageName: String, enabled: Boolean) {
+        val service = currentService ?: return
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { ScriptStore.setEnabled(service, packageName, enabled) }
+            refresh()
+        }
+    }
+
+    fun syncStatusLabel(): String {
+        val status = _state.value.syncStatus
+        return status.ifEmpty { getApplication<Application>().getString(R.string.sync_never) }
+    }
 
     override fun onCleared() {
         logcatJob?.cancel()
