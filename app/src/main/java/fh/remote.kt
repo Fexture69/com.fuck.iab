@@ -50,7 +50,10 @@ object RemoteScriptSync {
                 throw IOException("checksum mismatch for ${entry.packageName}")
             }
 
-            RemoteFiles.write(service, name, String(bytes, Charsets.UTF_8))
+            if (!RemoteFiles.write(service, name, String(bytes, Charsets.UTF_8))) {
+                throw IOException("could not store ${entry.packageName}")
+            }
+
             downloaded++
         }
 
@@ -60,11 +63,15 @@ object RemoteScriptSync {
             if (RemoteFiles.delete(service, name)) removed++
         }
 
-        RemoteFiles.write(
+        val stored = RemoteFiles.write(
             service,
             RemoteScripts.INDEX_FILE,
             RemoteScripts.indexJson(System.currentTimeMillis(), manifestText)
         )
+
+        if (!stored) {
+            throw IOException("could not store the manifest index")
+        }
 
         return Result(downloaded, removed, manifest.size)
     }

@@ -51,15 +51,17 @@ object RemoteFiles {
         }
     }
 
-    fun write(service: XposedService, name: String, text: String) {
-        try {
+    /** @return true when the file was stored, so callers never claim a write that failed. */
+    fun write(service: XposedService, name: String, text: String): Boolean {
+        return try {
             val pfd = service.openRemoteFile(name)
             FileOutputStream(pfd.fileDescriptor).use { out ->
                 out.channel.truncate(0)
                 out.write(text.toByteArray(Charsets.UTF_8))
             }
+            true
         } catch (e: Exception) {
-            // Nothing to do, the caller shows the failure.
+            false
         }
     }
 
@@ -263,13 +265,17 @@ object ScriptStore {
         return RemoteFiles.read(service, file)
     }
 
-    fun saveUserScript(context: Context, service: XposedService, packageName: String, text: String) {
-        RemoteFiles.write(service, userFile(packageName), text)
+    /** @return false when the script could not be stored in the shared directory. */
+    fun saveUserScript(context: Context, service: XposedService, packageName: String, text: String): Boolean {
+        if (!RemoteFiles.write(service, userFile(packageName), text)) return false
+
         if (packageName != ALL_APPS) {
             val index = readUserIndex(context).toMutableMap()
             index[packageName] = userFile(packageName)
             writeUserIndex(context, index)
         }
+
+        return true
     }
 
     fun revertUserScript(context: Context, service: XposedService, packageName: String) {

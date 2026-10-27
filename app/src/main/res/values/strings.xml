@@ -60,6 +60,7 @@
 
     <!-- messages -->
     <string name="toast_saved">Script saved</string>
+    <string name="toast_save_failed">Could not save the script</string>
     <string name="toast_reverted">User script removed</string>
     <string name="toast_not_connected">Not connected to the Xposed service.</string>
     <string name="toast_package_required">Enter a package name</string>

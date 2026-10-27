@@ -132,8 +132,13 @@ class editor : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
+            val saved = withContext(Dispatchers.IO) {
                 ScriptStore.saveUserScript(this@editor, current, packageName, text)
+            }
+
+            if (!saved) {
+                Toast.makeText(this@editor, R.string.toast_save_failed, Toast.LENGTH_SHORT).show()
+                return@launch
             }
 
             Toast.makeText(this@editor, R.string.toast_saved, Toast.LENGTH_SHORT).show()
