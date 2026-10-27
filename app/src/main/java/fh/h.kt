@@ -190,7 +190,15 @@ class h(application: Application) : AndroidViewModel(application) {
 
     private fun load(service: XposedService?): Loaded {
         val context = getApplication<Application>()
-        val scope = if (service != null) ScriptStore.scope(service) else emptyList()
+
+        // Right after the service binds again the framework can answer with an empty scope
+        // for a moment, which would read as "no apps in scope". Ask once more before believing it.
+        var scope = if (service != null) ScriptStore.scope(service) else emptyList()
+        if (service != null && scope.isEmpty()) {
+            Thread.sleep(SCOPE_RETRY_MS)
+            scope = ScriptStore.scope(service)
+        }
+
         val scripts = ScriptStore.inventory(context, service, scope.toSet())
 
         return Loaded(
@@ -394,5 +402,6 @@ class h(application: Application) : AndroidViewModel(application) {
     private companion object {
         const val RUNNING_POLL_MS = 5000L
         const val HOT_RELOAD_TIMEOUT_MS = 15000L
+        const val SCOPE_RETRY_MS = 400L
     }
 }
