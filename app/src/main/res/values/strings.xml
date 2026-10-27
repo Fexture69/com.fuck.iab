@@ -46,6 +46,7 @@
     <string name="hot_reload_timeout">The framework did not answer in time</string>
     <string name="home_hooked_empty">No apps in the module scope yet.</string>
     <string name="home_script_none">no script</string>
+    <string name="home_script_global">all apps script</string>
     <string name="home_script_disabled">disabled</string>
 
     <!-- scripts -->

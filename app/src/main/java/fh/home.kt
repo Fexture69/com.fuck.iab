@@ -23,7 +23,6 @@ import com.fuck.iab.HookedApp
 import com.fuck.iab.R
 import com.fuck.iab.RunningProcess
 import com.fuck.iab.RunningState
-import com.fuck.iab.ScriptInfo
 import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
 import com.google.android.material.button.MaterialButton
@@ -114,7 +113,7 @@ private class AppAdapter(
 
         holder.label.text = app.label
         holder.packageName.text = app.packageName
-        holder.state.text = stateLabel(app.script)
+        holder.state.text = stateLabel(app)
 
         val running = runningLabel(app.running)
         holder.running.text = running
@@ -128,8 +127,15 @@ private class AppAdapter(
         holder.icon.setImageDrawable(iconFor(app.packageName))
     }
 
-    private fun stateLabel(script: ScriptInfo?): String {
-        if (script == null) return context.getString(R.string.home_script_none)
+    private fun stateLabel(app: HookedApp): String {
+        val script = app.script
+
+        if (script == null) {
+            // Nothing dedicated for this app, but the all-apps script runs there when it is loaded.
+            val label = if (app.isRunning) R.string.home_script_global else R.string.home_script_none
+            return context.getString(label)
+        }
+
         if (!script.enabled) return context.getString(R.string.home_script_disabled)
         return sourceLabel(context, script.source)
     }
