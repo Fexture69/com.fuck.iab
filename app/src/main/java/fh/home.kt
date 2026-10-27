@@ -53,11 +53,9 @@ class home : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
-                    serviceStatus.text = if (state.connected) {
-                        state.framework
-                    } else {
-                        getString(R.string.home_not_connected)
-                    }
+                    serviceStatus.text = getString(
+                        if (state.connected) R.string.home_status_active else R.string.home_status_inactive
+                    )
 
                     syncStatus.text = viewModel.syncStatusLabel()
                     hookedCount.text = state.scope.toString()

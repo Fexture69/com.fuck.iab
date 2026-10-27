@@ -19,8 +19,9 @@
     <string name="action_cancel">Cancel</string>
 
     <!-- home -->
-    <string name="home_service">Xposed service</string>
-    <string name="home_not_connected">Not connected to the Xposed service.</string>
+    <string name="home_status">Xposed Status</string>
+    <string name="home_status_active">Active</string>
+    <string name="home_status_inactive">Inactive</string>
     <string name="home_hooked">Hooked apps</string>
     <string name="home_installed">Installed scripts</string>
     <string name="home_enabled">Enabled scripts</string>
@@ -55,13 +56,6 @@
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_logs">Logs</string>
     <string name="settings_logs_summary">Frida output of the hooked apps</string>
-    <string name="settings_module">Module</string>
-    <string name="settings_framework">Framework</string>
-    <string name="settings_store">Script store</string>
-    <string name="settings_last_sync">Last sync</string>
-    <string name="settings_cached">Cached scripts</string>
-    <string name="settings_sync_now">Sync scripts now</string>
-    <string name="settings_scope">Apps in scope</string>
     <string name="logs_title">Logs</string>
 
     <!-- messages -->

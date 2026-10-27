@@ -195,8 +195,13 @@ class h(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private val _messages = Channel<String>(Channel.BUFFERED)
+
+    /** One shot results for the screens to show, currently the manual sync outcome. */
+    val messages = _messages.receiveAsFlow()
+
     /** Pulls the published scripts, then reloads what the screens show. */
-    fun sync() {
+    fun sync(manual: Boolean = false) {
         val service = currentService ?: return
         if (_state.value.syncing) return
 
@@ -221,6 +226,9 @@ class h(application: Application) : AndroidViewModel(application) {
             )
 
             _state.update { it.copy(syncing = false, syncStatus = status) }
+
+            if (manual) _messages.trySend(status)
+
             refresh()
         }
     }

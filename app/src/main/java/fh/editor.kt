@@ -48,13 +48,14 @@ class editor : AppCompatActivity() {
         service = g.getService()
 
         val toolbar = findViewById<MaterialToolbar>(R.id.editorToolbar)
-        toolbar.title = if (packageName == ScriptStore.ALL_APPS) {
+        setSupportActionBar(toolbar)
+        supportActionBar?.title = if (packageName == ScriptStore.ALL_APPS) {
             getString(R.string.scripts_all_apps)
         } else {
             ScriptStore.appLabel(this, packageName)
         }
+        supportActionBar?.subtitle = packageName
         toolbar.setNavigationOnClickListener { finish() }
-        toolbar.subtitle = packageName
 
         input = findViewById(R.id.editorInput)
         source = findViewById(R.id.editorSource)
