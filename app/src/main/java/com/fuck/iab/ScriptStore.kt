@@ -43,7 +43,9 @@ data class ScriptDetails(
     val installed: Boolean,
     val enabled: Boolean,
     val coveredApps: Int,
-    val inScope: Boolean
+    val inScope: Boolean,
+    /** The entry the store published for this app, null when it has none. */
+    val manifest: RemoteScripts.Entry?
 )
 
 /** How the module code inside a running process relates to the installed module. */
@@ -321,7 +323,8 @@ object ScriptStore {
             installed = isInstalled(context, packageName),
             enabled = service == null || packageName !in disabledApps(service),
             coveredApps = if (packageName == ALL_APPS) scoped.size else 1,
-            inScope = packageName == ALL_APPS || scoped.contains(packageName)
+            inScope = packageName == ALL_APPS || scoped.contains(packageName),
+            manifest = entry
         )
     }
 

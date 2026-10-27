@@ -218,6 +218,18 @@ class scripts : Fragment() {
         checksumNote.setText(
             if (details.matchesManifest == true) R.string.detail_matches else R.string.detail_differs
         )
+
+        // The entry the store published for this app, as it stands in the downloaded manifest.
+        val manifest = details.manifest
+        view.findViewById<View>(R.id.detailManifestSection).isVisible = manifest != null
+        view.findViewById<View>(R.id.detailManifestNone).isVisible = manifest == null
+
+        if (manifest != null) {
+            view.findViewById<TextView>(R.id.detailManifestFile).text = manifest.file
+            view.findViewById<TextView>(R.id.detailManifestSize).text = ScriptStore.sizeLabel(manifest.size.toInt())
+            view.findViewById<TextView>(R.id.detailManifestAuthor).text = manifest.author ?: "-"
+            view.findViewById<TextView>(R.id.detailManifestChecksum).text = manifest.sha256
+        }
     }
 
     // ---- new script picker -----------------------------------------------------

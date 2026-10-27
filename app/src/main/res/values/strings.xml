@@ -61,11 +61,15 @@
     <string name="detail_size">Size</string>
     <string name="detail_author">Author</string>
     <string name="detail_file">File</string>
+    <string name="detail_file_local">Module file</string>
     <string name="detail_covers">Covers</string>
     <string name="detail_published">Published</string>
-    <string name="detail_synced">Synced</string>
+    <string name="detail_synced">Downloaded</string>
     <string name="detail_status">Status</string>
     <string name="detail_checksum">SHA-256</string>
+    <string name="detail_checksum_local">SHA-256 of the local copy</string>
+    <string name="detail_manifest">Synced manifest entry</string>
+    <string name="detail_manifest_none">The store has no entry for this app, so this script is not downloaded from it.</string>
     <string name="detail_store_note">Fetched from the script store</string>
     <string name="detail_baked_note">Bundled with the module build</string>
     <string name="detail_user_note">Saved in the manager app</string>
