@@ -18,6 +18,7 @@ import com.fuck.iab.R
 import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
@@ -72,6 +73,11 @@ class editor : AppCompatActivity() {
         wrap.setOnCheckedChangeListener { _, checked -> applyWrap(checked) }
         applyWrap(wrap.isChecked)
 
+        findViewById<MaterialButton>(R.id.editorSaveButton).apply {
+            isEnabled = service != null
+            setOnClickListener { save() }
+        }
+
         if (service == null) {
             Toast.makeText(this, R.string.toast_not_connected, Toast.LENGTH_SHORT).show()
         }
@@ -86,7 +92,6 @@ class editor : AppCompatActivity() {
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         val connected = service != null
-        menu.findItem(R.id.action_save)?.isEnabled = connected
         menu.findItem(R.id.action_revert)?.isVisible = connected
         // Only an edited copy of a published script can be restored to the repo version.
         menu.findItem(R.id.action_restore)?.isVisible = connected && published && hasUserCopy
@@ -95,11 +100,6 @@ class editor : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_save -> {
-                save()
-                true
-            }
-
             R.id.action_restore -> {
                 confirmRestore()
                 true
