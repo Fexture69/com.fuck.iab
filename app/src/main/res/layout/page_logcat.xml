@@ -1,79 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/logcatScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layoutDirection="ltr"
-    android:orientation="vertical">
+    android:layoutDirection="ltr">
 
-    <!-- Controls stay at the top, above the output, and stay compact so the log gets the rest. -->
-    <LinearLayout
+    <TextView
+        android:id="@+id/logcatView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="4dp">
+        android:fontFamily="monospace"
+        android:padding="12dp"
+        android:textIsSelectable="true"
+        android:textSize="13sp" />
 
-        <CheckBox
-            android:id="@+id/autoScrollCheckBox"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:checked="true"
-            android:minHeight="36dp"
-            android:text="@string/auto_scroll"
-            android:textSize="14sp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/retryLogButton"
-            style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:minWidth="0dp"
-            android:minHeight="40dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:text="@string/action_retry"
-            android:textSize="13sp"
-            app:cornerRadius="20dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/clearLogButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:minWidth="0dp"
-            android:minHeight="40dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:text="@string/clear_log"
-            android:textSize="13sp"
-            app:cornerRadius="20dp" />
-
-    </LinearLayout>
-
-    <ScrollView
-        android:id="@+id/logcatScroll"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <TextView
-            android:id="@+id/logcatView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:padding="12dp"
-            android:textIsSelectable="true"
-            android:textSize="13sp" />
-
-    </ScrollView>
-
-</LinearLayout>
+</ScrollView>
