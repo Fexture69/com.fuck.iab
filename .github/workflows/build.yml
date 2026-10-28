@@ -72,19 +72,6 @@ jobs:
               || { echo "missing libfrida-gumjs.a for $abi"; exit 1; }
           done
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: scripts/package-lock.json
-
-      - name: Build scripts
-        working-directory: scripts
-        run: |
-          npm ci
-          npm run vendor
-          npm run build:all
-
       - name: Decode signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

@@ -57,13 +57,6 @@
                 android:text="@string/source_remote" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/filterBaked"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/source_baked" />
-
-            <com.google.android.material.chip.Chip
                 android:id="@+id/filterUser"
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"

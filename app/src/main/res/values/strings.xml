@@ -25,7 +25,6 @@
     <string name="home_hooked">Hooked apps</string>
     <string name="home_installed">Installed scripts</string>
     <string name="home_enabled">Enabled scripts</string>
-    <string name="home_sync">Script store</string>
     <string name="home_never">never</string>
     <string name="home_hooked_title">Hooked apps</string>
     <string name="home_hooked_running">%1$d of %2$d running</string>
@@ -46,15 +45,13 @@
     <string name="scripts_empty">No scripts yet. Pull to refresh or create one.</string>
     <string name="scripts_all_apps">All apps</string>
     <string name="source_user">user</string>
-    <string name="source_remote">store</string>
-    <string name="source_baked">built-in</string>
+    <string name="source_remote">remote</string>
     <string name="scripts_new_title">New script</string>
     <string name="scripts_search_hint">Search apps</string>
     <string name="scripts_search">Search scripts</string>
     <string name="scripts_no_match">No matching app</string>
     <string name="scripts_nothing_matches">Nothing matches that search</string>
     <string name="filter_all">All</string>
-    <string name="scripts_not_installed">not installed</string>
     <string name="scripts_covers_one">covers 1 app</string>
     <string name="scripts_covers_many">covers %1$d apps</string>
     <string name="scripts_not_in_scope">not in scope</string>
@@ -72,9 +69,8 @@
     <string name="detail_checksum">SHA-256</string>
     <string name="detail_checksum_local">SHA-256 of the local copy</string>
     <string name="detail_manifest">Synced manifest entry</string>
-    <string name="detail_manifest_none">The store has no entry for this app, so this script is not downloaded from it.</string>
-    <string name="detail_store_note">Fetched from the script store</string>
-    <string name="detail_baked_note">Bundled with the module build</string>
+    <string name="detail_manifest_none">The remote store has no entry for this app, so this script is not downloaded from it.</string>
+    <string name="detail_store_note">Fetched from the remote store</string>
     <string name="detail_user_note">Saved in the manager app</string>
     <string name="detail_matches">matches the published manifest</string>
     <string name="detail_differs">does not match the published manifest</string>
@@ -87,7 +83,7 @@
     <!-- editor -->
     <string name="editor_author">Author: %1$s</string>
     <string name="editor_source">Source: %1$s</string>
-    <string name="editor_revert_note">The user copy of this script is deleted, so the built-in or store copy is used again.</string>
+    <string name="editor_revert_note">The user copy of this script is deleted, so the remote copy is used again.</string>
 
     <!-- settings -->
     <string name="settings_appearance">Appearance</string>

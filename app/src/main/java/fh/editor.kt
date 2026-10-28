@@ -25,7 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// editor for one script: saves a user copy that wins over the store and built-in ones
+// editor for one script: saves a user copy that wins over the remote one
 class editor : AppCompatActivity() {
 
     private lateinit var input: TextInputEditText

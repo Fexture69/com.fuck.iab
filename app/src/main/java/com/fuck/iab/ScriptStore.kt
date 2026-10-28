@@ -12,7 +12,7 @@ import java.io.FileOutputStream
 import java.util.Locale
 
 /** Where the script that is currently used for a package comes from. */
-enum class ScriptSource { USER, REMOTE, BAKED }
+enum class ScriptSource { USER, REMOTE }
 
 data class ScriptInfo(
     val packageName: String,
@@ -20,7 +20,6 @@ data class ScriptInfo(
     val author: String?,
     val size: Int,
     val enabled: Boolean,
-    val installed: Boolean,
     val hasUserScript: Boolean,
     /** Apps this script runs in: every app in scope for the all-apps script, one for a package. */
     val coveredApps: Int,
@@ -114,7 +113,7 @@ object RemoteFiles {
 /** App side knowledge about scripts: what exists, what is enabled and what an editor shows. */
 object ScriptStore {
 
-    /** The all-apps script, matching assets/scripts/global.js. */
+    /** The all-apps script, the entry the store publishes as global. */
     const val ALL_APPS = "global"
 
     private const val SETTINGS_GROUP = "ui"
@@ -160,50 +159,29 @@ object ScriptStore {
         val remote = if (service != null) remoteEntries(service) else emptyList()
         val remoteByPackage = remote.associateBy { it.packageName }
         val disabled = if (service != null) disabledApps(service) else emptySet()
-
-        val baked = bakedInfo(context)
         val users = userEntries(context, files)
 
         val names = sortedSetOf<String>()
-        names += ALL_APPS
-        names += baked.keys
         names += users.keys
         names += remoteByPackage.keys
 
         return names.map { packageName ->
             val user = users[packageName]
             val synced = remoteByPackage[packageName]
-            val builtIn = baked[packageName]
 
             val source: ScriptSource
             val size: Int
             val author: String?
 
-            when {
-                user != null -> {
-                    val text = if (service != null) RemoteFiles.read(service, user) else null
-                    source = ScriptSource.USER
-                    size = text?.toByteArray(Charsets.UTF_8)?.size ?: 0
-                    author = text?.let { authorOf(it) }
-                }
-
-                synced != null -> {
-                    source = ScriptSource.REMOTE
-                    size = synced.size.toInt()
-                    author = synced.author
-                }
-
-                builtIn != null -> {
-                    source = ScriptSource.BAKED
-                    size = builtIn.first
-                    author = builtIn.second
-                }
-
-                else -> {
-                    source = ScriptSource.BAKED
-                    size = 0
-                    author = null
-                }
+            if (user != null) {
+                val text = if (service != null) RemoteFiles.read(service, user) else null
+                source = ScriptSource.USER
+                size = text?.toByteArray(Charsets.UTF_8)?.size ?: 0
+                author = text?.let { authorOf(it) }
+            } else {
+                source = ScriptSource.REMOTE
+                size = synced?.size?.toInt() ?: 0
+                author = synced?.author
             }
 
             val inScope = packageName == ALL_APPS || scope.contains(packageName)
@@ -214,7 +192,6 @@ object ScriptStore {
                 author = author,
                 size = size,
                 enabled = !disabled.contains(packageName),
-                installed = isInstalled(context, packageName),
                 hasUserScript = user != null,
                 coveredApps = if (packageName == ALL_APPS) scope.size else if (inScope) 1 else 0,
                 inScope = inScope
@@ -225,31 +202,6 @@ object ScriptStore {
     private fun remoteEntries(service: XposedService): List<RemoteScripts.Entry> {
         return RemoteScripts.parseIndex(RemoteFiles.read(service, RemoteScripts.INDEX_FILE))?.entries
             ?: emptyList()
-    }
-
-    fun bakedPackages(context: Context): Set<String> = bakedInfo(context).keys
-
-    private fun bakedInfo(context: Context): Map<String, Pair<Int, String?>> {
-        val result = sortedMapOf<String, Pair<Int, String?>>()
-
-        try {
-            java.util.zip.ZipFile(context.applicationInfo.sourceDir).use { zip ->
-                val entries = zip.entries()
-                while (entries.hasMoreElements()) {
-                    val entry = entries.nextElement()
-                    val name = entry.name
-                    if (!entry.isDirectory && name.startsWith("assets/scripts/") && name.endsWith(".js")) {
-                        val packageName = name.removePrefix("assets/scripts/").removeSuffix(".js")
-                        val text = zip.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
-                        result[packageName] = text.toByteArray(Charsets.UTF_8).size to authorOf(text)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            // An unreadable apk just means no built-in scripts are listed.
-        }
-
-        return result
     }
 
     fun authorOf(script: String): String? {
@@ -270,7 +222,6 @@ object ScriptStore {
         }
 
         val entry = index?.entries?.firstOrNull { it.packageName == packageName }
-        val bakedText = bakedText(context, packageName)
         val scoped = if (service != null) scope(service) else emptyList()
 
         val userFile = userFile(packageName)
@@ -293,13 +244,8 @@ object ScriptStore {
                 text = RemoteFiles.read(service, syncedFile)
             }
 
-            bakedText != null -> {
-                source = ScriptSource.BAKED
-                text = bakedText
-            }
-
             else -> {
-                source = ScriptSource.BAKED
+                source = ScriptSource.REMOTE
                 text = null
             }
         }
@@ -337,35 +283,19 @@ object ScriptStore {
 
     // ---- content ---------------------------------------------------------------
 
-    /** The script the module would run for [packageName]: user copy, then store, then built-in. */
+    /** The script the module would run for [packageName]: the user copy, else the remote one. */
     fun readScript(context: Context, service: XposedService?, packageName: String): Pair<ScriptSource, String>? {
-        if (service != null) {
-            val user = readUserScript(context, service, packageName)
-            if (!user.isNullOrBlank()) return ScriptSource.USER to user
-        }
+        if (service == null) return null
 
-        if (packageName != ALL_APPS && service != null) {
-            if (RemoteFiles.list(service).contains(RemoteScripts.fileName(packageName))) {
-                val synced = RemoteFiles.read(service, RemoteScripts.fileName(packageName))
-                if (!synced.isNullOrBlank()) return ScriptSource.REMOTE to synced
-            }
-        }
+        val user = readUserScript(context, service, packageName)
+        if (!user.isNullOrBlank()) return ScriptSource.USER to user
 
-        val builtIn = bakedText(context, packageName)
-        if (!builtIn.isNullOrBlank()) return ScriptSource.BAKED to builtIn
+        if (RemoteFiles.list(service).contains(RemoteScripts.fileName(packageName))) {
+            val synced = RemoteFiles.read(service, RemoteScripts.fileName(packageName))
+            if (!synced.isNullOrBlank()) return ScriptSource.REMOTE to synced
+        }
 
         return null
-    }
-
-    fun bakedText(context: Context, packageName: String): String? {
-        return try {
-            java.util.zip.ZipFile(context.applicationInfo.sourceDir).use { zip ->
-                val entry = zip.getEntry("assets/scripts/$packageName.js") ?: return null
-                zip.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
-            }
-        } catch (e: Exception) {
-            null
-        }
     }
 
     // ---- user scripts ----------------------------------------------------------

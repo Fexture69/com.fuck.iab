@@ -81,7 +81,6 @@ class scripts : Fragment() {
             .setOnCheckedStateChangeListener { _, checkedIds ->
                 filter = when (checkedIds.firstOrNull()) {
                     R.id.filterStore -> ScriptSource.REMOTE
-                    R.id.filterBaked -> ScriptSource.BAKED
                     R.id.filterUser -> ScriptSource.USER
                     else -> null
                 }
@@ -177,7 +176,6 @@ class scripts : Fragment() {
         val note = when (details.source) {
             ScriptSource.USER -> R.string.detail_user_note
             ScriptSource.REMOTE -> R.string.detail_store_note
-            ScriptSource.BAKED -> R.string.detail_baked_note
         }
 
         val sourceText = getString(note) + " · " + sourceLabel(context, details.source)
@@ -374,9 +372,6 @@ private class ScriptAdapter(
 
         if (item.size > 0) parts += ScriptStore.sizeLabel(item.size)
         item.author?.let { parts += it }
-        if (!item.installed && item.packageName != ScriptStore.ALL_APPS) {
-            parts += context.getString(R.string.scripts_not_installed)
-        }
 
         holder.meta.text = parts.joinToString(" · ")
         holder.covers.text = coverageLabel(context, item.coveredApps, item.inScope)

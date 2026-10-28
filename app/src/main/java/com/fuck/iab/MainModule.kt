@@ -31,7 +31,6 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.security.PublicKey
 import java.util.concurrent.CountDownLatch
-import java.util.zip.ZipFile
 import kotlin.time.Duration.Companion.seconds
 
 object NativeBridge {
@@ -482,7 +481,6 @@ class MainModule : XposedModule() {
 
         return readUserScriptForPackage(packageName)
             ?: readRemoteScriptForPackage(packageName)
-            ?: readBakedScriptForPackage(packageName)
     }
 
     private fun isScriptDisabled(packageName: String): Boolean {
@@ -498,7 +496,7 @@ class MainModule : XposedModule() {
         }
     }
 
-    // A script written in the manager app wins over the synced and the built-in copy.
+    // A script written in the manager app wins over the remote copy.
     private fun readUserScriptForPackage(packageName: String): String? {
         if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return null
 
@@ -516,8 +514,8 @@ class MainModule : XposedModule() {
         }
     }
 
-    // Scripts synced by the manager app win over the copy baked into the apk, so a script
-    // added after this build reaches the installed module without a new release.
+    // Scripts synced by the manager app are what the module runs, so a script added later
+    // reaches the installed module without a new release.
     private fun readRemoteScriptForPackage(packageName: String): String? {
         if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return null
 
@@ -531,20 +529,6 @@ class MainModule : XposedModule() {
                 .takeIf { it.isNotBlank() }
         } catch (e: Exception) {
 //            log("Failed to read remote script for $packageName: ${e.message}")
-            null
-        }
-    }
-
-    private fun readBakedScriptForPackage(packageName: String): String? {
-        val apkPath = this.moduleApplicationInfo.sourceDir
-        return try {
-            ZipFile(apkPath).use { zip ->
-                val entry = zip.getEntry("${assets_scripts_()}$packageName${_js()}")
-                    ?: return null
-                zip.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
-            }
-        } catch (e: Exception) {
-//            log("Failed to read script for $packageName: ${e.message}")
             null
         }
     }
