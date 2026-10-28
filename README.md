@@ -18,11 +18,35 @@ https://github.com/user-attachments/assets/baa25c2c-baaf-4e84-86e8-51e9f4545a4a
 - [ ] Amazon
 - [ ] Huawei
 
+The module declares those three stores in `META-INF/xposed/scope.list`, so the manager can
+offer them as its scope. Any other app can still be added to the scope by hand.
+
 ## Features
 
 - Support for restoring previously purchased items.
-- Custom Frida Scripts.
-- Scripts are updated without a new apk release.
+- Custom Frida Scripts, delivered remotely: no new apk is needed for a script change.
+- Manager app with a per-app switch, a script editor and live module state.
+
+## Manager app
+
+The module ships a manager app with three screens:
+
+- **Home**: Xposed status, the last sync time, how many apps are hooked, how many scripts are
+  installed and enabled, the apps in the module scope with their script source, and a live line
+  per running app (`running · pid 1234`, `running an old build`). The module version sits under
+  the title on every screen.
+- **Scripts**: search and source filters, a switch to enable or disable the script of an app,
+  how many apps a script covers, and a detail sheet with its source, size, author, checksum
+  and when it was downloaded. Tapping opens the editor; the button at the bottom creates a
+  script for an app you pick from a list; the toolbar action refreshes from the store.
+- **Settings**: light/dark/system theme, and the log screen.
+
+The log screen reads the module's own log with `su logcat`, so it needs root. Without it the
+screen says so instead of failing quietly.
+
+A script switched off in **Scripts** is skipped for that app, and a user copy saved in the
+editor wins over the one from the store. Scripts are read when an app starts, so restart the
+app or game to pick up a change.
 
 ## Custom Frida Scripts
 
@@ -49,19 +73,23 @@ scripts/src/
 
 ### Remote Scripts
 
-Every build ships the compiled scripts as a fallback, and the module also reads them from
-its shared data directory. The manager app fetches the published scripts and writes them
-there, so a script added after the apk was built is picked up anyway.
+Nothing is baked into the apk. The module reads the script for an app from the framework's
+shared data directory, which the manager app fills from the published store, so a new or
+fixed script reaches an installed module without a release.
 
-- Open the module app and use **Sync scripts** in the Script tab.
-- The app also syncs by itself when the cached copy is older than 12 hours.
-- Downloads need a connection to the Xposed framework, since the files live in the
-  module's shared data directory.
+- The store lives on the `scripts-dist` branch of
+  [Xposed-Modules-Repo/com.fuck.iab](https://github.com/Xposed-Modules-Repo/com.fuck.iab),
+  and the app downloads `manifest.json` plus every script listed in it.
+- In the app, open **Scripts** and use the refresh action in the toolbar. It also syncs by
+  itself when the cached copy is older than 12 hours.
+- Downloads need a connection to the Xposed framework, because the files live in the module's
+  shared data directory.
 - Restart the app or game to run a script that was just updated.
+- A fresh install has no scripts at all until the store has been synced once.
 
-Scripts are published from `scripts/` with `npm run build:dist && npm run publish`, which
-pushes them to the `scripts-dist` branch of this repository. See
-[scripts/README.md](scripts/README.md) for the details.
+Scripts are published from `scripts/` with `npm run build:dist && npm run publish`, or
+automatically by `.github/workflows/publish-scripts.yml` when a push to `dev` or `main`
+touches `scripts/**`. See [scripts/README.md](scripts/README.md) for the details.
 
 ### Contributing Custom Scripts
 
@@ -73,6 +101,12 @@ Please include:
 - The package name of the app/game
 - The custom script
 - A brief description of what it does
+
+## Building
+
+`.github/workflows/build.yml` builds and signs both a debug and a release apk for
+`arm64-v8a` and `armeabi-v7a`, and a `v*` tag publishes a release. Locally, the native part
+needs the diet frida-gum devkit, see [build-frida-gum.sh](build-frida-gum.sh).
 
 ## Telegram Channel
 
