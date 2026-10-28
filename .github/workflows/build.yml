@@ -83,7 +83,6 @@ jobs:
         working-directory: scripts
         run: |
           npm ci
-          npm run vendor
           npm run build:all
 
       - name: Verify packaged Frida scripts

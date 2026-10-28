@@ -17,8 +17,8 @@ frida -U -f com.kiloo.subwaysurf -l ../app/src/main/assets/scripts/com.kiloo.sub
 ## Remote scripts
 
 Installed modules pull scripts from the `scripts-dist` branch, so adding or fixing a
-script no longer needs a new apk release. `scripts/libs/frida-java-bridge.js` has to be
-in place before building, same as for the apk.
+script no longer needs a new apk release. `frida-java-bridge` is imported straight from
+`node_modules`, so `npm install` is all the setup a build needs.
 
 ```
 npm run build:dist    # compile into scripts/dist and write dist/manifest.json

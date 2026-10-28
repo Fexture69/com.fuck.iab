@@ -8,7 +8,6 @@ on:
     paths:
       - 'scripts/src/**'
       - 'scripts/build.js'
-      - 'scripts/vendor.js'
       - 'scripts/publish.js'
       - 'scripts/package.json'
       - 'scripts/package-lock.json'
@@ -39,7 +38,6 @@ jobs:
         working-directory: scripts
         run: |
           npm ci
-          npm run vendor
           npm run build:dist
 
       - name: Prepare git credentials
