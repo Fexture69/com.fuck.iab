@@ -90,18 +90,48 @@ class c : AppCompatActivity(), g.ServiceStateListener {
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        // Refreshing the installed scripts belongs to the scripts screen.
-        menu.findItem(R.id.action_refresh)?.isVisible = viewPager.currentItem == PAGE_SCRIPTS
+        // Refreshing the installed scripts belongs to the scripts screen, the log actions to
+        // the logs one, so the toolbar only offers what the current page can do.
+        val onScripts = viewPager.currentItem == PAGE_SCRIPTS
+        val onLogs = viewPager.currentItem == PAGE_LOGS
+
+        menu.findItem(R.id.action_refresh)?.isVisible = onScripts
+        menu.findItem(R.id.action_logs_retry)?.isVisible = onLogs
+        menu.findItem(R.id.action_logs_clear)?.isVisible = onLogs
+
+        menu.findItem(R.id.action_logs_scroll)?.apply {
+            isVisible = onLogs
+            isChecked = viewModel.autoScroll
+        }
+
         return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_refresh) {
-            viewModel.sync(manual = true)
-            return true
-        }
+        return when (item.itemId) {
+            R.id.action_refresh -> {
+                viewModel.sync(manual = true)
+                true
+            }
 
-        return super.onOptionsItemSelected(item)
+            R.id.action_logs_scroll -> {
+                viewModel.autoScroll = !viewModel.autoScroll
+                item.isChecked = viewModel.autoScroll
+                true
+            }
+
+            R.id.action_logs_retry -> {
+                viewModel.retryLogcatStreaming()
+                true
+            }
+
+            R.id.action_logs_clear -> {
+                viewModel.clearLogView()
+                true
+            }
+
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     /** "version 1.6.4 (38)", taken from the installed package. */

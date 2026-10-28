@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.CheckBox
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -16,12 +14,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.fuck.iab.R
 import kotlinx.coroutines.launch
 
-// log fragment
+// log fragment: the output only, the actions live in the toolbar
 class f : Fragment() {
 
     lateinit var logcatScroll: ScrollView
     lateinit var logcatView: TextView
-    lateinit var autoScrollCheckBox: CheckBox
 
     private val viewModel: h by activityViewModels()
 
@@ -37,21 +34,6 @@ class f : Fragment() {
         )
         logcatScroll = v.findViewById(R.id.logcatScroll)
         logcatView = v.findViewById(R.id.logcatView)
-        autoScrollCheckBox = v.findViewById(R.id.autoScrollCheckBox)
-        autoScrollCheckBox.isChecked = true
-
-        v.findViewById<Button>(R.id.clearLogButton)
-            .setOnClickListener {
-                viewModel.clearLogs()
-                logcatView.text = ""
-            }
-
-        // Useful after root has been granted to the app while this screen is open.
-        v.findViewById<Button>(R.id.retryLogButton)
-            .setOnClickListener {
-                viewModel.retryLogcatStreaming()
-                logcatView.text = ""
-            }
 
         logcatView.text = viewModel.getLogs()
 
@@ -68,11 +50,20 @@ class f : Fragment() {
                 }
             }
         }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.cleared.collect {
+                    logcatView.text = ""
+                }
+            }
+        }
+
         return v
     }
 
     fun scrollToBottom() {
-        if (autoScrollCheckBox.isChecked) {
+        if (viewModel.autoScroll) {
             logcatScroll.post {
                 logcatScroll.fullScroll(View.FOCUS_DOWN)
             }
@@ -82,7 +73,7 @@ class f : Fragment() {
     override fun onResume() {
         super.onResume()
 
-        if (::logcatScroll.isInitialized && ::autoScrollCheckBox.isInitialized) {
+        if (::logcatScroll.isInitialized && ::logcatView.isInitialized) {
             scrollToBottom()
         }
 

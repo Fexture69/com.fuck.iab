@@ -74,6 +74,19 @@ class h(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Set from the toolbar toggle, read by the log page when it scrolls. */
+    var autoScroll = true
+
+    private val _cleared = Channel<Unit>(Channel.BUFFERED)
+
+    /** Tells the log page to drop the text it has on screen, not just the buffer. */
+    val cleared = _cleared.receiveAsFlow()
+
+    fun clearLogView() {
+        clearLogs()
+        _cleared.trySend(Unit)
+    }
+
     private var logcatJob: Job? = null
 
     /**
@@ -155,7 +168,7 @@ class h(application: Application) : AndroidViewModel(application) {
     fun retryLogcatStreaming() {
         logcatJob?.cancel()
         logcatJob = null
-        clearLogs()
+        clearLogView()
         startLogcatStreaming()
     }
 
