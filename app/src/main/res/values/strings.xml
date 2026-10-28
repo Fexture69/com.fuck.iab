@@ -75,6 +75,7 @@
     <!-- editor -->
     <string name="editor_author">Author: %1$s</string>
     <string name="editor_source">Source: %1$s</string>
+    <string name="editor_word_wrap">Word wrap</string>
     <string name="editor_revert_note">The user copy of this script is deleted, so the remote copy is used again.</string>
     <string name="editor_restore_note">Your copy is deleted and the script published in the repository is downloaded in its place. Edits that are not saved yet are dropped too.</string>
 

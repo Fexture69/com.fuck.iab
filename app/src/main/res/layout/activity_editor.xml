@@ -21,6 +21,16 @@
         android:paddingBottom="8dp"
         android:textAppearance="?attr/textAppearanceLabelMedium" />
 
+    <!-- Code keeps its line breaks, so wrapping is opt in. -->
+    <CheckBox
+        android:id="@+id/editorWrap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:minHeight="36dp"
+        android:text="@string/editor_word_wrap"
+        android:textSize="13sp" />
+
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -37,6 +47,7 @@
             android:gravity="top|start"
             android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
             android:scrollHorizontally="true"
+            android:scrollbars="horizontal"
             android:textSize="12sp" />
     </com.google.android.material.textfield.TextInputLayout>
 
