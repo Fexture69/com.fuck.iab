@@ -46,7 +46,6 @@ class c : AppCompatActivity(), g.ServiceStateListener {
 
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
-        supportActionBar?.subtitle = versionLabel()
 
         viewPager = findViewById(R.id.viewPager)
         bottomNav = findViewById(R.id.bottomNav)
@@ -145,6 +144,9 @@ class c : AppCompatActivity(), g.ServiceStateListener {
                 else -> R.string.app_name
             }
         )
+
+        // The build number belongs to the home page, not to every screen.
+        supportActionBar?.subtitle = if (position == PAGE_HOME) versionLabel() else null
     }
 
     private fun pageOf(itemId: Int): Int {
