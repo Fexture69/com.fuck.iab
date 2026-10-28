@@ -47,10 +47,11 @@ class editor : AppCompatActivity() {
 
         val root = findViewById<View>(R.id.editorRoot)
         applySystemBarIcons(this, root)
-        root.post {
-            val rootWindowInsets = ViewCompat.getRootWindowInsets(root) ?: return@post
-            val systemBars = rootWindowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            root.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+        // Keep the save button above the keyboard instead of behind it.
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
         }
 
         packageName = intent.getStringExtra(EXTRA_PACKAGE) ?: ScriptStore.ALL_APPS

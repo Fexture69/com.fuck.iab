@@ -34,7 +34,8 @@
         <activity
             android:name="fh.editor"
             android:exported="false"
-            android:parentActivityName="fh.c" />
+            android:parentActivityName="fh.c"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>
