@@ -49,7 +49,7 @@
 
     <!-- scripts -->
     <string name="scripts_empty">No scripts yet. Pull to refresh or create one.</string>
-    <string name="scripts_all_apps">All apps</string>
+    <string name="scripts_all_apps">Global script</string>
     <string name="source_user">user</string>
     <string name="source_remote">remote</string>
     <string name="scripts_new_title">New script</string>

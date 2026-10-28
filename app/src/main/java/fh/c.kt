@@ -42,7 +42,9 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         root.post {
             val rootWindowInsets = ViewCompat.getRootWindowInsets(root) ?: return@post
             val systemBars = rootWindowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            root.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            // The bottom bar sits in the navigation bar area itself, so the root keeps no
+            // bottom padding and the bar's surface fills that strip instead of leaving a gap.
+            root.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
         }
 
         toolbar = findViewById(R.id.toolbar)
@@ -50,6 +52,14 @@ class c : AppCompatActivity(), g.ServiceStateListener {
 
         viewPager = findViewById(R.id.viewPager)
         bottomNav = findViewById(R.id.bottomNav)
+
+        // The bar keeps its own background down to the navigation bar, using that height as
+        // padding for the labels instead of leaving an empty strip below the app.
+        ViewCompat.setOnApplyWindowInsetsListener(bottomNav) { view, insets ->
+            val bar = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, bar)
+            insets
+        }
 
         viewPager.adapter = ScreensAdapter(this)
         viewPager.offscreenPageLimit = PAGE_COUNT
