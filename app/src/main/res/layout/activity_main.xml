@@ -19,12 +19,13 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Flat with the page: the bar and the window share one colour, no raised strip. -->
+    <!-- Flat with the page: no background of its own, so the window colour shows through and
+         Material does not paint its surface tint over the bar. -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurface"
+        android:background="@android:color/transparent"
         android:elevation="0dp"
         app:menu="@menu/nav_main" />
 
