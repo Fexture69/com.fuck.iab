@@ -38,6 +38,7 @@ class editor : AppCompatActivity() {
         setContentView(R.layout.activity_editor)
 
         val root = findViewById<View>(R.id.editorRoot)
+        applySystemBarIcons(this, root)
         root.post {
             val rootWindowInsets = ViewCompat.getRootWindowInsets(root) ?: return@post
             val systemBars = rootWindowInsets.getInsets(WindowInsetsCompat.Type.systemBars())

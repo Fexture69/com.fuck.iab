@@ -37,6 +37,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         setContentView(R.layout.activity_main)
 
         val root = findViewById<View>(R.id.root)
+        applySystemBarIcons(this, root)
         root.post {
             val rootWindowInsets = ViewCompat.getRootWindowInsets(root) ?: return@post
             val systemBars = rootWindowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
