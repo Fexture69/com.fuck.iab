@@ -7,4 +7,5 @@
     <color name="my_on_secondary">#3F2E00</color>
     <color name="my_secondary_container">#5C4300</color>
     <color name="my_on_secondary_container">#FFDF9C</color>
+    <color name="my_icon">#CAC4D0</color>
 </resources>
