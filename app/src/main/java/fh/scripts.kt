@@ -183,7 +183,7 @@ class scripts : Fragment() {
         view.findViewById<TextView>(R.id.detailSummary).text = summary.joinToString(" · ")
 
         view.findViewById<TextView>(R.id.detailCovers).text =
-            coverageLabel(context, details.coveredApps, details.inScope)
+            coverageLabel(context, details.packageName, details.coveredApps, details.inScope)
 
         view.findViewById<TextView>(R.id.detailStatus).text =
             getString(if (details.enabled) R.string.status_enabled else R.string.status_disabled)
@@ -355,7 +355,7 @@ private class ScriptAdapter(
         item.author?.let { parts += it }
 
         holder.meta.text = parts.joinToString(" · ")
-        holder.covers.text = coverageLabel(context, item.coveredApps, item.inScope)
+        holder.covers.text = coverageLabel(context, item.packageName, item.coveredApps, item.inScope)
         holder.icon.setImageDrawable(
             ScriptStore.appIcon(context, item.packageName) ?: context.getDrawable(R.drawable.ic_description)
         )
