@@ -17,7 +17,7 @@ import java.util.Locale
  */
 object RemoteScripts {
 
-    const val REPOSITORY = "rushiranpise/com.fuck.iab"
+    const val REPOSITORY = "Xposed-Modules-Repo/com.fuck.iab"
 
     const val BRANCH = "scripts-dist"
 
