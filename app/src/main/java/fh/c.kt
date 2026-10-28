@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -44,6 +45,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
 
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
+        supportActionBar?.subtitle = versionLabel()
 
         viewPager = findViewById(R.id.viewPager)
         bottomNav = findViewById(R.id.bottomNav)
@@ -99,6 +101,20 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         }
 
         return super.onOptionsItemSelected(item)
+    }
+
+    /** "version 1.6.4 (38)", taken from the installed package. */
+    private fun versionLabel(): String {
+        return try {
+            val info = packageManager.getPackageInfo(packageName, 0)
+            getString(
+                R.string.app_version,
+                info.versionName ?: "?",
+                PackageInfoCompat.getLongVersionCode(info)
+            )
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     private fun titleFor(position: Int) {
