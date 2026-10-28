@@ -18,6 +18,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.fuck.iab.R
+import com.fuck.iab.ScriptStore
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.github.libxposed.service.XposedService
@@ -98,6 +99,13 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         menu.findItem(R.id.action_logs_retry)?.isVisible = onLogs
         menu.findItem(R.id.action_logs_clear)?.isVisible = onLogs
 
+        // The button offers the mode the app is not in, and shows what it switches to.
+        menu.findItem(R.id.action_theme)?.apply {
+            val night = ScriptStore.isNight(this@c)
+            setIcon(if (night) R.drawable.ic_light_mode else R.drawable.ic_dark_mode)
+            setTitle(if (night) R.string.action_theme_light else R.string.action_theme_dark)
+        }
+
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -105,6 +113,15 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         return when (item.itemId) {
             R.id.action_refresh -> {
                 viewModel.sync(manual = true)
+                true
+            }
+
+            R.id.action_theme -> {
+                val night = ScriptStore.isNight(this)
+                ScriptStore.setTheme(
+                    this,
+                    if (night) ScriptStore.THEME_LIGHT else ScriptStore.THEME_DARK
+                )
                 true
             }
 
