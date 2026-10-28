@@ -15,9 +15,8 @@ env:
   # prebuilt devkit includes V8, which is why build-frida-gum.sh builds a diet
   # QuickJS-only devkit from a frida-gum checkout instead.
   GUM_VERSION: "17.24.3"
-  # frida-gum 17.x only accepts NDK r29; the app itself is built with the NDK
-  # pinned in app/build.gradle, which is newer, so both are installed.
-  GUM_NDK_VERSION: "29.0.14206865"
+  # Match the working release build: compile Frida Gum with the app's pinned NDK.
+  GUM_NDK_VERSION: "30.0.16248370"
   NDK_VERSION: "30.0.16248370"
   CMAKE_VERSION: "3.22.1"
 
@@ -53,7 +52,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/libs
-          key: frida-gum-${{ env.GUM_VERSION }}-${{ hashFiles('build-frida-gum.sh') }}
+          key: frida-gum-${{ env.GUM_VERSION }}-${{ env.GUM_NDK_VERSION }}-${{ hashFiles('build-frida-gum.sh') }}
 
       - name: Build frida-gum devkit
         if: steps.frida-cache.outputs.cache-hit != 'true'
