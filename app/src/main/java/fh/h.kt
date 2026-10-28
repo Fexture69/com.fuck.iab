@@ -194,14 +194,19 @@ class h(application: Application) : AndroidViewModel(application) {
 
         if (service == null) {
             autoSynced = false
-            _state.update { it.copy(scripts = emptyList(), hookedApps = emptyList(), cached = 0) }
+            // The scripts are not cleared here. Without the service the list can only be built
+            // from user copies, and replacing it with that would hide every downloaded script
+            // until the framework binds again.
+            _state.update { it.copy(hookedApps = emptyList()) }
             return
         }
 
         viewModelScope.launch {
-            val stale = withContext(Dispatchers.IO) { RemoteScriptSync.isStale(service) }
+            // Only the first run, with nothing cached yet, fetches on its own. After that the
+            // store is only pulled when the refresh action is used.
+            val firstRun = withContext(Dispatchers.IO) { RemoteScriptSync.lastSync(service) == 0L }
 
-            if (stale && !autoSynced) {
+            if (firstRun && !autoSynced) {
                 autoSynced = true
                 sync()
             } else {
@@ -212,7 +217,7 @@ class h(application: Application) : AndroidViewModel(application) {
 
     /** Reloads the whole picture: scripts, scope and the processes the module is loaded in. */
     fun refresh() {
-        val service = currentService
+        val service = currentService ?: return
 
         viewModelScope.launch {
             val loaded = withContext(Dispatchers.IO) { load(service) }

@@ -80,8 +80,8 @@ fixed script reaches an installed module without a release.
 - The store lives on the `scripts-dist` branch of
   [Xposed-Modules-Repo/com.fuck.iab](https://github.com/Xposed-Modules-Repo/com.fuck.iab),
   and the app downloads `manifest.json` plus every script listed in it.
-- In the app, open **Scripts** and use the refresh action in the toolbar. It also syncs by
-  itself when the cached copy is older than 12 hours.
+- In the app, open **Scripts** and use the refresh action in the toolbar. It syncs by
+  itself only once, when nothing has been downloaded yet.
 - Downloads need a connection to the Xposed framework, because the files live in the module's
   shared data directory.
 - Restart the app or game to run a script that was just updated.
