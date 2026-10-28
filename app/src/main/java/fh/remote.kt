@@ -20,9 +20,6 @@ object RemoteScriptSync {
 
     private const val TIMEOUT_MS = 20000
 
-    /** How long a cached manifest is trusted before the manager app syncs on its own. */
-    const val FRESH_MS = 12 * 60 * 60 * 1000L
-
     data class Result(val downloaded: Int, val removed: Int, val total: Int)
 
     fun sync(service: XposedService): Result {
@@ -94,11 +91,6 @@ object RemoteScriptSync {
         } catch (e: Exception) {
             0
         }
-    }
-
-    fun isStale(service: XposedService): Boolean {
-        val last = lastSync(service)
-        return last == 0L || System.currentTimeMillis() - last > FRESH_MS
     }
 
     private fun download(url: String): ByteArray {

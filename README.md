@@ -54,7 +54,8 @@ its shared data directory. The manager app fetches the published scripts and wri
 there, so a script added after the apk was built is picked up anyway.
 
 - Open the module app and use **Sync scripts** in the Script tab.
-- The app also syncs by itself when the cached copy is older than 12 hours.
+- The app syncs by itself only once, when nothing has been downloaded yet. After that it
+  fetches only when you use **Refresh scripts**.
 - Downloads need a connection to the Xposed framework, since the files live in the
   module's shared data directory.
 - Restart the app or game to run a script that was just updated.
