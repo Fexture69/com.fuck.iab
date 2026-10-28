@@ -46,6 +46,13 @@ class f : Fragment() {
                 logcatView.text = ""
             }
 
+        // Useful after root has been granted to the app while this screen is open.
+        v.findViewById<Button>(R.id.retryLogButton)
+            .setOnClickListener {
+                viewModel.retryLogcatStreaming()
+                logcatView.text = ""
+            }
+
         logcatView.text = viewModel.getLogs()
 
         viewLifecycleOwner.lifecycleScope.launch {

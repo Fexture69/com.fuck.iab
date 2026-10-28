@@ -3,7 +3,6 @@ package fh
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.fuck.iab.Error__
 import com.fuck.iab.HookedApp
 import com.fuck.iab.R
 import com.fuck.iab.ScriptInfo
@@ -83,24 +82,55 @@ class h(application: Application) : AndroidViewModel(application) {
 
     private var logcatJob: Job? = null
 
+    /**
+     * Streams the module's own log. The lines come from the hooked apps, so they are read with
+     * `su logcat`, and every way that can fail gets an explanation rather than a raw error.
+     */
     fun startLogcatStreaming() {
         if (logcatJob != null) {
             return
         }
 
         logcatJob = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val process = Runtime.getRuntime().exec(
+            val app = getApplication<Application>()
+
+            val process = try {
+                Runtime.getRuntime().exec(
                     arrayOf(
                         su(),
                         _c(),
                         logcat__v_tag__s_FKIAB_V_FRIDA_V()
                     )
                 )
-                val reader = process.inputStream.bufferedReader()
-                while (isActive) {
-                    val line = reader.readLine() ?: break
+            } catch (e: Exception) {
+                // No su on the device at all, which is the usual case on an unrooted phone.
+                withContext(Dispatchers.Main) { addLog(app.getString(R.string.logs_no_su) + "\n") }
+                return@launch
+            }
 
+            try {
+                val reader = process.inputStream.bufferedReader()
+                var line = reader.readLine()
+
+                if (line == null) {
+                    val code = try {
+                        process.waitFor()
+                    } catch (e: Exception) {
+                        -1
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        addLog(
+                            app.getString(
+                                if (code != 0) R.string.logs_root_denied else R.string.logs_no_output
+                            ) + "\n"
+                        )
+                    }
+
+                    return@launch
+                }
+
+                while (isActive) {
                     val index = line.indexOf(": ")
 
                     val clean = if (index != -1) {
@@ -116,13 +146,23 @@ class h(application: Application) : AndroidViewModel(application) {
                     withContext(Dispatchers.Main) {
                         addLog(clean + "\n")
                     }
+
+                    line = reader.readLine() ?: break
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    addLog("${Error__()}${e.message}\n")
+                    addLog(app.getString(R.string.logs_stream_failed, e.message ?: e.javaClass.simpleName) + "\n")
                 }
             }
         }
+    }
+
+    /** Starts the stream again, for after root has been granted. */
+    fun retryLogcatStreaming() {
+        logcatJob?.cancel()
+        logcatJob = null
+        clearLogs()
+        startLogcatStreaming()
     }
 
     // ---- module and script state ----------------------------------------------

@@ -98,6 +98,11 @@
     <string name="settings_logs">Logs</string>
     <string name="settings_logs_summary">Frida output of the hooked apps</string>
     <string name="logs_title">Logs</string>
+    <string name="action_retry">Retry</string>
+    <string name="logs_no_su">Reading the module log needs root. The app runs \"su logcat\", and no su was found on this device, so nothing can be shown here.</string>
+    <string name="logs_root_denied">Root access was denied. Allow root for FKIAB in your root manager, then retry.</string>
+    <string name="logs_no_output">The log stream ended without any output.</string>
+    <string name="logs_stream_failed">Could not read the log: %1$s</string>
 
     <!-- messages -->
     <string name="toast_saved">Script saved</string>

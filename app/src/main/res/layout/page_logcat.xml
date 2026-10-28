@@ -30,13 +30,29 @@
         android:checked="true"
         android:text="@string/auto_scroll" />
 
-    <Button
-        android:id="@+id/clearLogButton"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="12dp"
-        android:layout_marginRight="12dp"
-        android:layout_marginBottom="8dp"
-        android:text="@string/clear_log" />
+        android:orientation="horizontal"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="8dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/retryLogButton"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/action_retry" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/clearLogButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/clear_log" />
+    </LinearLayout>
 
 </LinearLayout>
