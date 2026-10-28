@@ -7,6 +7,11 @@
         android:title="@string/save"
         app:showAsAction="always" />
     <item
+        android:id="@+id/action_restore"
+        android:icon="@drawable/ic_sync"
+        android:title="@string/action_restore"
+        app:showAsAction="ifRoom" />
+    <item
         android:id="@+id/action_revert"
         android:icon="@drawable/ic_delete"
         android:title="@string/action_revert"

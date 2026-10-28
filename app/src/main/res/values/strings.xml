@@ -17,6 +17,7 @@
     <string name="action_refresh">Refresh scripts</string>
     <string name="action_new_script">New script</string>
     <string name="action_revert">Remove user script</string>
+    <string name="action_restore">Restore published version</string>
     <string name="action_add">Add</string>
     <string name="action_cancel">Cancel</string>
 
@@ -76,6 +77,7 @@
     <string name="editor_author">Author: %1$s</string>
     <string name="editor_source">Source: %1$s</string>
     <string name="editor_revert_note">The user copy of this script is deleted, so the remote copy is used again.</string>
+    <string name="editor_restore_note">Your copy is deleted and the script published in the repository is downloaded in its place. Edits that are not saved yet are dropped too.</string>
 
     <!-- logs -->
     <string name="action_retry">Retry</string>
@@ -88,6 +90,8 @@
     <string name="toast_saved">Script saved</string>
     <string name="toast_save_failed">Could not save the script</string>
     <string name="toast_reverted">User script removed</string>
+    <string name="toast_restored">Restored the published script</string>
+    <string name="toast_restore_failed">Could not reach the repository, nothing was changed</string>
     <string name="toast_not_connected">Not connected to the Xposed service.</string>
     <string name="toast_package_required">Enter a package name</string>
     <string name="syncing">Syncing...</string>
