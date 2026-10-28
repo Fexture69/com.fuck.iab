@@ -25,7 +25,6 @@
     <string name="home_hooked">Hooked apps</string>
     <string name="home_installed">Installed scripts</string>
     <string name="home_enabled">Enabled scripts</string>
-    <string name="home_never">never</string>
     <string name="home_hooked_title">Hooked apps</string>
     <string name="home_hooked_running">%1$d of %2$d running</string>
     <string name="home_running">running</string>
@@ -57,27 +56,16 @@
     <string name="scripts_not_in_scope">not in scope</string>
 
     <!-- details -->
-    <string name="detail_source">Source</string>
-    <string name="detail_size">Size</string>
-    <string name="detail_author">Author</string>
-    <string name="detail_file">File</string>
     <string name="detail_file_local">Module file</string>
     <string name="detail_covers">Covers</string>
     <string name="detail_published">Published</string>
     <string name="detail_synced">Downloaded</string>
     <string name="detail_status">Status</string>
     <string name="detail_checksum">SHA-256</string>
-    <string name="detail_checksum_local">SHA-256 of the local copy</string>
-    <string name="detail_manifest">Synced manifest entry</string>
-    <string name="detail_manifest_none">The remote store has no entry for this app, so this script is not downloaded from it.</string>
-    <string name="detail_store_note">Fetched from the remote store</string>
-    <string name="detail_user_note">Saved in the manager app</string>
     <string name="detail_matches">matches the published manifest</string>
     <string name="detail_differs">does not match the published manifest</string>
     <string name="status_enabled">enabled</string>
     <string name="status_disabled">disabled</string>
-    <string name="status_installed">installed</string>
-    <string name="status_not_installed">not installed</string>
     <string name="action_edit">Edit script</string>
 
     <!-- editor -->
@@ -106,7 +94,6 @@
     <string name="toast_reverted">User script removed</string>
     <string name="toast_not_connected">Not connected to the Xposed service.</string>
     <string name="toast_package_required">Enter a package name</string>
-    <string name="toast_synced">Scripts refreshed</string>
     <string name="syncing">Syncing...</string>
     <string name="sync_failed">Sync failed: %1$s</string>
     <string name="sync_result">Synced: %1$d downloaded, %2$d removed, %3$d total</string>

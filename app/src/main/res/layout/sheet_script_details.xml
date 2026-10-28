@@ -47,8 +47,9 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- source, size and author, once -->
         <TextView
-            android:id="@+id/detailSourceNote"
+            android:id="@+id/detailSummary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -58,30 +59,10 @@
         <TableLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             android:stretchColumns="1">
 
             <TableRow>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/detail_source"
-                    android:textAppearance="?attr/textAppearanceBodyMedium" />
-
-                <TextView
-                    android:id="@+id/detailSource"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:textAppearance="?attr/textAppearanceBodyMedium" />
-            </TableRow>
-
-            <TableRow>
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -100,64 +81,24 @@
             </TableRow>
 
             <TableRow>
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:paddingTop="6dp"
                     android:paddingEnd="12dp"
                     android:paddingBottom="6dp"
-                    android:text="@string/detail_size"
+                    android:text="@string/detail_status"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                 <TextView
-                    android:id="@+id/detailSize"
+                    android:id="@+id/detailStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="end"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
-            </TableRow>
-
-            <TableRow android:id="@+id/detailAuthorRow">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/detail_author"
-                    android:textAppearance="?attr/textAppearanceBodyMedium" />
-
-                <TextView
-                    android:id="@+id/detailAuthor"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:textAppearance="?attr/textAppearanceBodyMedium" />
-            </TableRow>
-
-            <TableRow android:id="@+id/detailFileRow">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/detail_file_local"
-                    android:textAppearance="?attr/textAppearanceBodyMedium" />
-
-                <TextView
-                    android:id="@+id/detailFile"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:textAppearance="?attr/textAppearanceBodySmall" />
             </TableRow>
 
             <TableRow android:id="@+id/detailPublishedRow">
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -176,7 +117,6 @@
             </TableRow>
 
             <TableRow android:id="@+id/detailSyncedRow">
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -194,23 +134,22 @@
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
             </TableRow>
 
-            <TableRow>
-
+            <TableRow android:id="@+id/detailFileRow">
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:paddingTop="6dp"
                     android:paddingEnd="12dp"
                     android:paddingBottom="6dp"
-                    android:text="@string/detail_status"
+                    android:text="@string/detail_file_local"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                 <TextView
-                    android:id="@+id/detailStatus"
+                    android:id="@+id/detailFile"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="end"
-                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+                    android:textAppearance="?attr/textAppearanceBodySmall" />
             </TableRow>
         </TableLayout>
 
@@ -218,7 +157,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/detail_checksum_local"
+            android:text="@string/detail_checksum"
             android:textAppearance="?attr/textAppearanceLabelLarge" />
 
         <TextView
@@ -236,110 +175,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:textAppearance="?attr/textAppearanceLabelSmall" />
-
-        <LinearLayout
-            android:id="@+id/detailManifestSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/detail_manifest"
-                android:textAppearance="?attr/textAppearanceLabelLarge" />
-
-            <TableLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:stretchColumns="1">
-
-                <TableRow>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="4dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="4dp"
-                        android:text="@string/detail_file"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-
-                    <TextView
-                        android:id="@+id/detailManifestFile"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="end"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-                </TableRow>
-
-                <TableRow>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="4dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="4dp"
-                        android:text="@string/detail_size"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-
-                    <TextView
-                        android:id="@+id/detailManifestSize"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="end"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-                </TableRow>
-
-                <TableRow>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="4dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="4dp"
-                        android:text="@string/detail_author"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-
-                    <TextView
-                        android:id="@+id/detailManifestAuthor"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="end"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-                </TableRow>
-            </TableLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/detail_checksum"
-                android:textAppearance="?attr/textAppearanceLabelMedium" />
-
-            <TextView
-                android:id="@+id/detailManifestChecksum"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:fontFamily="monospace"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textIsSelectable="true" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/detailManifestNone"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/detail_manifest_none"
-            android:textAppearance="?attr/textAppearanceBodySmall"
-            android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/detailEdit"

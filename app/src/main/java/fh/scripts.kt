@@ -173,21 +173,20 @@ class scripts : Fragment() {
         val context = requireContext()
         val dateFormat = DateFormat.getDateTimeInstance()
 
-        val note = when (details.source) {
-            ScriptSource.USER -> R.string.detail_user_note
-            ScriptSource.REMOTE -> R.string.detail_store_note
+        // Source, size and author, once each, on one line.
+        val summary = buildList {
+            add(sourceLabel(context, details.source))
+            add(ScriptStore.sizeLabel(details.size))
+            details.author?.let { add(it) }
+            if (details.hasUserScript) add(getString(R.string.source_user))
         }
+        view.findViewById<TextView>(R.id.detailSummary).text = summary.joinToString(" · ")
 
-        val sourceText = getString(note) + " · " + sourceLabel(context, details.source)
-
-        view.findViewById<TextView>(R.id.detailSourceNote).text = sourceText
-        view.findViewById<TextView>(R.id.detailSource).text = sourceLabel(context, details.source)
         view.findViewById<TextView>(R.id.detailCovers).text =
             coverageLabel(context, details.coveredApps, details.inScope)
-        view.findViewById<TextView>(R.id.detailSize).text = ScriptStore.sizeLabel(details.size)
 
-        view.findViewById<TextView>(R.id.detailAuthor).text = details.author ?: "-"
-        view.findViewById<View>(R.id.detailAuthorRow).isVisible = details.author != null
+        view.findViewById<TextView>(R.id.detailStatus).text =
+            getString(if (details.enabled) R.string.status_enabled else R.string.status_disabled)
 
         view.findViewById<TextView>(R.id.detailFile).text = details.file ?: "-"
         view.findViewById<View>(R.id.detailFileRow).isVisible = details.file != null
@@ -202,13 +201,7 @@ class scripts : Fragment() {
         } ?: "-"
         view.findViewById<View>(R.id.detailSyncedRow).isVisible = details.syncedAt != null
 
-        val status = buildList {
-            add(getString(if (details.enabled) R.string.status_enabled else R.string.status_disabled))
-            add(getString(if (details.installed) R.string.status_installed else R.string.status_not_installed))
-            if (details.hasUserScript) add(getString(R.string.source_user))
-        }
-        view.findViewById<TextView>(R.id.detailStatus).text = status.joinToString(" · ")
-
+        // One checksum, with the verdict for remote copies only.
         view.findViewById<TextView>(R.id.detailChecksum).text = details.sha256 ?: "-"
 
         val checksumNote = view.findViewById<TextView>(R.id.detailChecksumNote)
@@ -216,18 +209,6 @@ class scripts : Fragment() {
         checksumNote.setText(
             if (details.matchesManifest == true) R.string.detail_matches else R.string.detail_differs
         )
-
-        // The entry the store published for this app, as it stands in the downloaded manifest.
-        val manifest = details.manifest
-        view.findViewById<View>(R.id.detailManifestSection).isVisible = manifest != null
-        view.findViewById<View>(R.id.detailManifestNone).isVisible = manifest == null
-
-        if (manifest != null) {
-            view.findViewById<TextView>(R.id.detailManifestFile).text = manifest.file
-            view.findViewById<TextView>(R.id.detailManifestSize).text = ScriptStore.sizeLabel(manifest.size.toInt())
-            view.findViewById<TextView>(R.id.detailManifestAuthor).text = manifest.author ?: "-"
-            view.findViewById<TextView>(R.id.detailManifestChecksum).text = manifest.sha256
-        }
     }
 
     // ---- new script picker -----------------------------------------------------
