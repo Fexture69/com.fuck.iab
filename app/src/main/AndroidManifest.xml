@@ -35,10 +35,6 @@
             android:name="fh.editor"
             android:exported="false"
             android:parentActivityName="fh.c" />
-        <activity
-            android:name="fh.logs"
-            android:exported="false"
-            android:parentActivityName="fh.c" />
     </application>
 
 </manifest>

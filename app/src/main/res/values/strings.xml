@@ -11,7 +11,7 @@
     <!-- navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_scripts">Scripts</string>
-    <string name="nav_settings">Settings</string>
+    <string name="nav_logs">Logs</string>
 
     <!-- actions -->
     <string name="action_refresh">Refresh scripts</string>
@@ -77,15 +77,7 @@
     <string name="editor_source">Source: %1$s</string>
     <string name="editor_revert_note">The user copy of this script is deleted, so the remote copy is used again.</string>
 
-    <!-- settings -->
-    <string name="settings_appearance">Appearance</string>
-    <string name="settings_theme">Theme</string>
-    <string name="settings_theme_system">System</string>
-    <string name="settings_theme_light">Light</string>
-    <string name="settings_theme_dark">Dark</string>
-    <string name="settings_logs">Logs</string>
-    <string name="settings_logs_summary">Frida output of the hooked apps</string>
-    <string name="logs_title">Logs</string>
+    <!-- logs -->
     <string name="action_retry">Retry</string>
     <string name="logs_no_su">Reading the module log needs root. The app runs \"su logcat\", and no su was found on this device, so nothing can be shown here.</string>
     <string name="logs_root_denied">Root access was denied. Allow root for FKIAB in your root manager, then retry.</string>

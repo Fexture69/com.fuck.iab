@@ -74,12 +74,6 @@ class h(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private val _log_init = Channel<Unit>(Channel.BUFFERED)
-    val logInit = _log_init.receiveAsFlow()
-    fun logInit() {
-        _log_init.trySend(Unit)
-    }
-
     private var logcatJob: Job? = null
 
     /**

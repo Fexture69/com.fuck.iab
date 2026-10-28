@@ -23,7 +23,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.github.libxposed.service.XposedService
 import kotlinx.coroutines.launch
 
-// main activity: home, scripts and settings behind a bottom navigation bar
+// main activity: home, scripts and logs behind a bottom navigation bar
 class c : AppCompatActivity(), g.ServiceStateListener {
 
     private lateinit var viewPager: ViewPager2
@@ -122,7 +122,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         supportActionBar?.setTitle(
             when (position) {
                 PAGE_SCRIPTS -> R.string.nav_scripts
-                PAGE_SETTINGS -> R.string.nav_settings
+                PAGE_LOGS -> R.string.nav_logs
                 else -> R.string.app_name
             }
         )
@@ -131,7 +131,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
     private fun pageOf(itemId: Int): Int {
         return when (itemId) {
             R.id.nav_scripts -> PAGE_SCRIPTS
-            R.id.nav_settings -> PAGE_SETTINGS
+            R.id.nav_logs -> PAGE_LOGS
             else -> PAGE_HOME
         }
     }
@@ -139,7 +139,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
     private fun itemOf(position: Int): Int {
         return when (position) {
             PAGE_SCRIPTS -> R.id.nav_scripts
-            PAGE_SETTINGS -> R.id.nav_settings
+            PAGE_LOGS -> R.id.nav_logs
             else -> R.id.nav_home
         }
     }
@@ -166,7 +166,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         override fun createFragment(position: Int): Fragment {
             return when (position) {
                 PAGE_SCRIPTS -> scripts()
-                PAGE_SETTINGS -> settings()
+                PAGE_LOGS -> f()
                 else -> home()
             }
         }
@@ -175,7 +175,7 @@ class c : AppCompatActivity(), g.ServiceStateListener {
     companion object {
         const val PAGE_HOME = 0
         const val PAGE_SCRIPTS = 1
-        const val PAGE_SETTINGS = 2
+        const val PAGE_LOGS = 2
 
         private const val PAGE_COUNT = 3
     }
