@@ -12,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.fuck.iab.R
+import com.google.android.material.materialswitch.MaterialSwitch
 import kotlinx.coroutines.launch
 
 // log fragment: the output only, the actions live in the toolbar
@@ -19,6 +20,7 @@ class f : Fragment() {
 
     lateinit var logcatScroll: ScrollView
     lateinit var logcatView: TextView
+    lateinit var autoScrollSwitch: MaterialSwitch
 
     private val viewModel: h by activityViewModels()
 
@@ -34,6 +36,12 @@ class f : Fragment() {
         )
         logcatScroll = v.findViewById(R.id.logcatScroll)
         logcatView = v.findViewById(R.id.logcatView)
+
+        autoScrollSwitch = v.findViewById(R.id.autoScrollSwitch)
+        autoScrollSwitch.isChecked = viewModel.autoScroll
+        autoScrollSwitch.setOnCheckedChangeListener { _, checked ->
+            viewModel.autoScroll = checked
+        }
 
         logcatView.text = viewModel.getLogs()
 

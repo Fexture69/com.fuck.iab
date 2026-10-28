@@ -99,11 +99,6 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         menu.findItem(R.id.action_logs_retry)?.isVisible = onLogs
         menu.findItem(R.id.action_logs_clear)?.isVisible = onLogs
 
-        menu.findItem(R.id.action_logs_scroll)?.apply {
-            isVisible = onLogs
-            isChecked = viewModel.autoScroll
-        }
-
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -111,12 +106,6 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         return when (item.itemId) {
             R.id.action_refresh -> {
                 viewModel.sync(manual = true)
-                true
-            }
-
-            R.id.action_logs_scroll -> {
-                viewModel.autoScroll = !viewModel.autoScroll
-                item.isChecked = viewModel.autoScroll
                 true
             }
 
