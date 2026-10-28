@@ -13,6 +13,6 @@
   },
   "devDependencies": {
     "frida-compile": "^19.0.5",
-    "frida-java-bridge": "^7.0.13"
+    "frida-java-bridge": "https://github.com/frida/frida-java-bridge/archive/b38a5b647d3e6b72aa19bcf8eb5e41c550a0e622.tar.gz"
   }
 }
