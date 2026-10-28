@@ -25,7 +25,6 @@ import com.fuck.iab.RunningProcess
 import com.fuck.iab.RunningState
 import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
-import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
 // home screen: module state, counters and the apps in scope
@@ -48,9 +47,10 @@ class home : Fragment() {
         val installedCount = v.findViewById<TextView>(R.id.installedCount)
         val enabledCount = v.findViewById<TextView>(R.id.enabledCount)
         val hookedEmpty = v.findViewById<TextView>(R.id.hookedEmpty)
+        val hookedNote = v.findViewById<TextView>(R.id.hookedNote)
         val hookedList = v.findViewById<RecyclerView>(R.id.hookedList)
 
-        adapter = AppAdapter(requireContext()) { packageName -> viewModel.hotReload(packageName) }
+        adapter = AppAdapter(requireContext())
         hookedList.layoutManager = LinearLayoutManager(requireContext())
         hookedList.adapter = adapter
 
@@ -73,7 +73,13 @@ class home : Fragment() {
 
                     installedCount.text = state.scripts.size.toString()
                     enabledCount.text = state.enabled.toString()
+                    // Never claim there are no apps in scope while the framework has not
+                    // actually reported the scope.
                     hookedEmpty.isVisible = state.hookedApps.isEmpty()
+                    hookedEmpty.setText(
+                        if (state.scopeUnconfirmed) R.string.home_scope_unknown else R.string.home_hooked_empty
+                    )
+                    hookedNote.isVisible = state.scopeUnconfirmed && state.hookedApps.isNotEmpty()
                     adapter.submitList(state.hookedApps)
                 }
             }
@@ -88,10 +94,7 @@ class home : Fragment() {
     }
 }
 
-private class AppAdapter(
-    private val context: Context,
-    private val onHotReload: (String) -> Unit
-) : ListAdapter<HookedApp, AppAdapter.Holder>(DIFF) {
+private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, AppAdapter.Holder>(DIFF) {
 
     private val icons = LruCache<String, Drawable>(64)
 
@@ -101,7 +104,6 @@ private class AppAdapter(
         val packageName: TextView = view.findViewById(R.id.appPackage)
         val running: TextView = view.findViewById(R.id.appRunning)
         val state: TextView = view.findViewById(R.id.appState)
-        val hotReload: MaterialButton = view.findViewById(R.id.appHotReload)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
@@ -118,11 +120,6 @@ private class AppAdapter(
         val running = runningLabel(app.running)
         holder.running.text = running
         holder.running.isVisible = running != null
-
-        // Only a process the framework reports as stale can be reloaded.
-        val stale = app.running.any { it.state == RunningState.STALE }
-        holder.hotReload.isVisible = stale
-        holder.hotReload.setOnClickListener { onHotReload(app.packageName) }
 
         holder.icon.setImageDrawable(iconFor(app.packageName))
     }

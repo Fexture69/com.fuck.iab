@@ -13,8 +13,6 @@ import com.fuck.iab._c
 import com.fuck.iab._s_
 import com.fuck.iab.logcat__v_tag__s_FKIAB_V_FRIDA_V
 import com.fuck.iab.su
-import io.github.libxposed.service.HookedTarget
-import io.github.libxposed.service.HotReloadResult
 import io.github.libxposed.service.XposedService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -27,7 +25,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.text.DateFormat
 import java.util.Date
 
@@ -38,6 +35,8 @@ data class UiState(
     val scripts: List<ScriptInfo> = emptyList(),
     val hookedApps: List<HookedApp> = emptyList(),
     val syncing: Boolean = false,
+    /** True when the framework did not report the scope and the last known one is shown. */
+    val scopeUnconfirmed: Boolean = false,
     val syncStatus: String = "",
     val lastSync: Long = 0L,
     val cached: Int = 0
@@ -134,7 +133,6 @@ class h(application: Application) : AndroidViewModel(application) {
     private var currentService: XposedService? = null
     private var autoSynced = false
     private var lastScope: List<String> = emptyList()
-    private var emptyScopeReads = 0
 
     /** Called when the framework connection comes up or goes away. */
     fun attachService(service: XposedService?) {
@@ -177,7 +175,8 @@ class h(application: Application) : AndroidViewModel(application) {
                     scripts = loaded.scripts,
                     hookedApps = loaded.apps,
                     cached = loaded.cached,
-                    lastSync = loaded.lastSync
+                    lastSync = loaded.lastSync,
+                    scopeUnconfirmed = !loaded.scopeConfirmed
                 )
             }
         }
@@ -187,40 +186,46 @@ class h(application: Application) : AndroidViewModel(application) {
         val scripts: List<ScriptInfo>,
         val apps: List<HookedApp>,
         val cached: Int,
-        val lastSync: Long
+        val lastSync: Long,
+        val scopeConfirmed: Boolean
     )
 
-    private fun load(service: XposedService?): Loaded {
-        val context = getApplication<Application>()
+    /**
+     * Reads the module scope. The framework sometimes answers with an empty scope - often right
+     * after the service binds again - while the module is plainly loaded in running apps, so the
+     * last known list is used as a fallback and reported as unconfirmed, rather than as no apps.
+     */
+    private fun resolveScope(context: Application, service: XposedService?): Pair<List<String>, Boolean> {
+        if (service == null) return emptyList<String>() to false
 
-        // A freshly bound service can answer with an empty scope for a while, which would
-        // read as "no apps in scope" even while a hooked app is running. Ask again, and if it
-        // still says nothing keep the last known scope for a couple of refreshes.
-        var scope = if (service != null) ScriptStore.scope(service) else emptyList()
+        var scope = ScriptStore.scope(service)
 
-        if (service != null && scope.isEmpty()) {
+        if (scope.isEmpty()) {
             Thread.sleep(SCOPE_RETRY_MS)
             scope = ScriptStore.scope(service)
         }
 
-        if (scope.isEmpty() && service != null) {
-            emptyScopeReads++
-
-            if (emptyScopeReads < SCOPE_EMPTY_LIMIT && lastScope.isNotEmpty()) {
-                scope = lastScope
-            }
-        } else {
-            emptyScopeReads = 0
-            lastScope = scope
+        if (scope.isNotEmpty()) {
+            ScriptStore.saveScope(context, scope)
+            return scope to true
         }
 
+        val cached = ScriptStore.savedScope(context)
+        return cached to cached.isNotEmpty()
+    }
+
+    private fun load(service: XposedService?): Loaded {
+        val context = getApplication<Application>()
+
+        val (scope, scopeConfirmed) = resolveScope(context, service)
         val scripts = ScriptStore.inventory(context, service, scope.toSet())
 
         return Loaded(
             scripts = scripts,
             apps = if (service != null) ScriptStore.hookedApps(context, service, scripts, scope) else emptyList(),
             cached = if (service != null) RemoteScriptSync.cachedCount(service) else 0,
-            lastSync = if (service != null) RemoteScriptSync.lastSync(service) else 0
+            lastSync = if (service != null) RemoteScriptSync.lastSync(service) else 0,
+            scopeConfirmed = scopeConfirmed && service != null
         )
     }
 
@@ -279,7 +284,10 @@ class h(application: Application) : AndroidViewModel(application) {
 
         runningPoll = viewModelScope.launch {
             while (isActive) {
-                refreshRunning()
+                // While the framework is not reporting the scope, keep asking for the whole
+                // picture so the hooked apps come back on their own once it answers again.
+                if (_state.value.scopeUnconfirmed) refresh() else refreshRunning()
+
                 delay(RUNNING_POLL_MS)
             }
         }
@@ -309,79 +317,6 @@ class h(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }
-        }
-    }
-
-    /**
-     * Asks the framework to reload the module in the processes that are still running an
-     * old build of it. The result arrives through the service callback.
-     */
-    fun hotReload(packageName: String) {
-        val service = currentService ?: return
-
-        viewModelScope.launch {
-            val app = getApplication<Application>()
-
-            val targets = withContext(Dispatchers.IO) {
-                try {
-                    service.runningTargets.filter { target ->
-                        target.processName?.substringBefore(':') == packageName &&
-                            target.state == HookedTarget.State.STALE
-                    }
-                } catch (e: Exception) {
-                    emptyList()
-                }
-            }
-
-            if (targets.isEmpty()) {
-                _messages.trySend(app.getString(R.string.hot_reload_none))
-                return@launch
-            }
-
-            val results = Channel<String>(Channel.UNLIMITED)
-
-            val callback = XposedService.HotReloadCallback { target, result ->
-                val label = target.processName ?: packageName
-
-                results.trySend(
-                    when (result.status()) {
-                        HotReloadResult.Status.SUCCEEDED -> app.getString(R.string.hot_reload_ok, label)
-                        HotReloadResult.Status.UNSUPPORTED -> app.getString(R.string.hot_reload_unsupported, label)
-                        HotReloadResult.Status.IN_PROGRESS -> app.getString(R.string.hot_reload_progress, label)
-                        HotReloadResult.Status.PROCESS_DIED -> app.getString(R.string.hot_reload_died, label)
-                        else -> result.message()?.let { app.getString(R.string.hot_reload_failed, label, it) }
-                            ?: app.getString(R.string.hot_reload_failed_unknown, label)
-                    }
-                )
-            }
-
-            withContext(Dispatchers.IO) {
-                targets.forEach { target ->
-                    try {
-                        service.hotReloadModule(target, null, callback)
-                    } catch (e: Exception) {
-                        results.trySend(
-                            app.getString(
-                                R.string.hot_reload_failed,
-                                target.processName ?: packageName,
-                                e.message ?: e.javaClass.simpleName
-                            )
-                        )
-                    }
-                }
-            }
-
-            val collected = mutableListOf<String>()
-
-            withTimeoutOrNull(HOT_RELOAD_TIMEOUT_MS) {
-                repeat(targets.size) { collected += results.receive() }
-            }
-
-            _messages.trySend(
-                collected.joinToString("; ").ifEmpty { app.getString(R.string.hot_reload_timeout) }
-            )
-
-            refreshRunning()
         }
     }
 
@@ -416,8 +351,6 @@ class h(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val RUNNING_POLL_MS = 5000L
-        const val HOT_RELOAD_TIMEOUT_MS = 15000L
         const val SCOPE_RETRY_MS = 400L
-        const val SCOPE_EMPTY_LIMIT = 2
     }
 }

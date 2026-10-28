@@ -120,15 +120,6 @@ class MainModule : XposedModule() {
 //        log(Log.INFO, TAG, "onSystemServerStarting, system classloader: " + param.classLoader)
     }
 
-    /**
-     * Accept reloading, which the manager app asks for on processes that still run an old
-     * build of the module. Without this the framework is told to keep the old code, since
-     * the default answer is no. Scripts are still read when the app starts, so a reload
-     * brings the module code up to date rather than the script contents.
-     */
-    override fun onHotReloading(param: XposedModuleInterface.HotReloadingParam): Boolean {
-        return true
-    }
 
     private fun packageLoaded(
         packageName: String,

@@ -120,6 +120,7 @@ object ScriptStore {
     private const val SETTINGS_GROUP = "ui"
     private const val THEME_KEY = "theme"
     private const val USER_INDEX_KEY = "user_scripts"
+    private const val SCOPE_KEY = "known_scope"
 
     const val THEME_SYSTEM = 0
     const val THEME_LIGHT = 1
@@ -464,6 +465,21 @@ object ScriptStore {
     }
 
     // ---- hooked apps -----------------------------------------------------------
+
+    /**
+     * The scope of the last successful read. The framework can answer with an empty scope,
+     * and claiming that no app is hooked when the module is demonstrably loaded would be
+     * wrong, so the last known list is kept as a fallback.
+     */
+    fun savedScope(context: Context): List<String> {
+        return context.getSharedPreferences(SETTINGS_GROUP, Context.MODE_PRIVATE)
+            .getStringSet(SCOPE_KEY, emptySet())?.toList() ?: emptyList()
+    }
+
+    fun saveScope(context: Context, scope: List<String>) {
+        context.getSharedPreferences(SETTINGS_GROUP, Context.MODE_PRIVATE)
+            .edit { putStringSet(SCOPE_KEY, scope.toSet()) }
+    }
 
     fun scope(service: XposedService): List<String> {
         return try {

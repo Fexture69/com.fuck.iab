@@ -148,6 +148,15 @@
             android:textAppearance="?attr/textAppearanceTitleMedium" />
 
         <TextView
+            android:id="@+id/hookedNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/home_scope_unconfirmed"
+            android:textAppearance="?attr/textAppearanceLabelSmall"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/hookedEmpty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
