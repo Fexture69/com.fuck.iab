@@ -104,14 +104,16 @@ class c : AppCompatActivity(), g.ServiceStateListener {
         // the logs one, so the toolbar only offers what the current page can do.
         val onScripts = viewPager.currentItem == PAGE_SCRIPTS
         val onLogs = viewPager.currentItem == PAGE_LOGS
+        val onHome = viewPager.currentItem == PAGE_HOME
 
         menu.findItem(R.id.action_refresh)?.isVisible = onScripts
         menu.findItem(R.id.action_logs_retry)?.isVisible = onLogs
         menu.findItem(R.id.action_logs_clear)?.isVisible = onLogs
 
-        // The button offers the mode the app is not in, and shows what it switches to.
+        // The theme button belongs to the home page, and offers the mode the app is not in.
         menu.findItem(R.id.action_theme)?.apply {
             val night = ScriptStore.isNight(this@c)
+            isVisible = onHome
             setIcon(if (night) R.drawable.ic_light_mode else R.drawable.ic_dark_mode)
             setTitle(if (night) R.string.action_theme_light else R.string.action_theme_dark)
         }
