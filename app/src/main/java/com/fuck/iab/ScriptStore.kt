@@ -134,6 +134,7 @@ object ScriptStore {
         applyTheme(context)
     }
 
+    @JvmStatic
     fun applyTheme(context: Context) {
         AppCompatDelegate.setDefaultNightMode(
             when (theme(context)) {
