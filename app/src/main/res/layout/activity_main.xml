@@ -19,10 +19,13 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <!-- Flat with the page: the bar and the window share one colour, no raised strip. -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        android:elevation="0dp"
         app:menu="@menu/nav_main" />
 
 </LinearLayout>
