@@ -133,6 +133,8 @@ class h(application: Application) : AndroidViewModel(application) {
 
     private var currentService: XposedService? = null
     private var autoSynced = false
+    private var lastScope: List<String> = emptyList()
+    private var emptyScopeReads = 0
 
     /** Called when the framework connection comes up or goes away. */
     fun attachService(service: XposedService?) {
@@ -191,12 +193,25 @@ class h(application: Application) : AndroidViewModel(application) {
     private fun load(service: XposedService?): Loaded {
         val context = getApplication<Application>()
 
-        // Right after the service binds again the framework can answer with an empty scope
-        // for a moment, which would read as "no apps in scope". Ask once more before believing it.
+        // A freshly bound service can answer with an empty scope for a while, which would
+        // read as "no apps in scope" even while a hooked app is running. Ask again, and if it
+        // still says nothing keep the last known scope for a couple of refreshes.
         var scope = if (service != null) ScriptStore.scope(service) else emptyList()
+
         if (service != null && scope.isEmpty()) {
             Thread.sleep(SCOPE_RETRY_MS)
             scope = ScriptStore.scope(service)
+        }
+
+        if (scope.isEmpty() && service != null) {
+            emptyScopeReads++
+
+            if (emptyScopeReads < SCOPE_EMPTY_LIMIT && lastScope.isNotEmpty()) {
+                scope = lastScope
+            }
+        } else {
+            emptyScopeReads = 0
+            lastScope = scope
         }
 
         val scripts = ScriptStore.inventory(context, service, scope.toSet())
@@ -403,5 +418,6 @@ class h(application: Application) : AndroidViewModel(application) {
         const val RUNNING_POLL_MS = 5000L
         const val HOT_RELOAD_TIMEOUT_MS = 15000L
         const val SCOPE_RETRY_MS = 400L
+        const val SCOPE_EMPTY_LIMIT = 2
     }
 }
