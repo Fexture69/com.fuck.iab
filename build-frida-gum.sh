@@ -74,9 +74,7 @@ CONFIGURE_FLAGS=(
   --disable-database       # no Database API (sqlite)
   --disable-tests          # no test programs
   --disable-graft-tool     # no gum-graft utility
-  # Diet mode is deliberately not enabled: it switches gum from its internal
-  # allocator to the system one, and the Java bridge hands ArtMethod blocks to
-  # ART through it, which crashed apps that run a script.
+  --enable-diet            # minimal-footprint build
 )
 
 # frida machine spec -> Android ABI directory name
