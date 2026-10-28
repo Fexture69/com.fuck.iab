@@ -72,6 +72,27 @@ jobs:
               || { echo "missing libfrida-gumjs.a for $abi"; exit 1; }
           done
 
+      # Keep the release APK's packaged Frida scripts in sync with the source,
+      # as the 1.6.4 release workflow did before assembling the APKs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Build scripts into APK assets
+        working-directory: scripts
+        run: |
+          npm ci
+          npm run vendor
+          npm run build:all
+
+      - name: Verify packaged Frida scripts
+        run: |
+          test -s app/src/main/assets/scripts/global.js
+          test -s app/src/main/assets/scripts/com.life360.android.safetymapd.js
+          test -s app/src/main/assets/scripts/com.adguard.android.js
+
       - name: Decode signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
