@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +19,7 @@ import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import io.github.libxposed.service.XposedService
 import kotlinx.coroutines.Dispatchers
@@ -68,7 +68,7 @@ class editor : AppCompatActivity() {
         input = findViewById(R.id.editorInput)
         source = findViewById(R.id.editorSource)
 
-        val wrap = findViewById<CheckBox>(R.id.editorWrap)
+        val wrap = findViewById<MaterialSwitch>(R.id.editorWrap)
         wrap.setOnCheckedChangeListener { _, checked -> applyWrap(checked) }
         applyWrap(wrap.isChecked)
 
