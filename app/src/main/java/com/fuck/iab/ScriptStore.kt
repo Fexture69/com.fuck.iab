@@ -508,10 +508,14 @@ object ScriptStore {
     }
 
     fun appIcon(context: Context, packageName: String): Drawable? {
+        // The all-apps entry is not an app, so the caller keeps its own script icon.
+        if (packageName == ALL_APPS) return null
+
         return try {
             context.packageManager.getApplicationIcon(packageName)
         } catch (e: Exception) {
-            null
+            // A package that is not installed still gets Android's default app icon.
+            context.getDrawable(android.R.drawable.sym_def_app_icon)
         }
     }
 
