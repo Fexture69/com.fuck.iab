@@ -514,8 +514,8 @@ object ScriptStore {
         return try {
             context.packageManager.getApplicationIcon(packageName)
         } catch (e: Exception) {
-            // A package that is not installed still gets Android's default app icon.
-            context.getDrawable(android.R.drawable.sym_def_app_icon)
+            // A package that is not installed keeps the caller's script icon.
+            null
         }
     }
 
