@@ -19,9 +19,10 @@ mkdir -p "$OUT_IN"
 OUT="$(cd "$OUT_IN" && pwd)"
 
 # --- Android NDK ------------------------------------------------------------
-# Keep Frida Gum on the same NDK revision as the app's native library.
+# The pinned frida-gum 17.24.3 releng requires r29; the app's native wrapper
+# separately uses the r30 version pinned in app/build.gradle.
 if [ -z "${ANDROID_NDK_ROOT:-}" ]; then
-  for cand in "$HOME/android/android-ndk-r30" "$HOME/Android/Sdk/ndk/30.0.16248370"; do
+  for cand in "$HOME/android/android-ndk-r29" "$HOME/Android/Sdk/ndk/29.0.14206865"; do
     if [ -f "$cand/source.properties" ]; then
       export ANDROID_NDK_ROOT="$cand"
       break
@@ -29,11 +30,11 @@ if [ -z "${ANDROID_NDK_ROOT:-}" ]; then
   done
 fi
 [ -n "${ANDROID_NDK_ROOT:-}" ] || \
-  die "ANDROID_NDK_ROOT is not set and no r30 NDK found in ~/android"
+  die "ANDROID_NDK_ROOT is not set and no r29 NDK found in ~/android"
 [ -f "$ANDROID_NDK_ROOT/source.properties" ] || \
   die "ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT has no source.properties"
-grep -q "Pkg.Revision = 30" "$ANDROID_NDK_ROOT/source.properties" || \
-  die "NDK r30 required (found: $(grep Pkg.Revision "$ANDROID_NDK_ROOT/source.properties"))"
+grep -q "Pkg.Revision = 29" "$ANDROID_NDK_ROOT/source.properties" || \
+  die "NDK r29 required (found: $(grep Pkg.Revision "$ANDROID_NDK_ROOT/source.properties"))"
 export ANDROID_NDK_ROOT
 echo "NDK: $ANDROID_NDK_ROOT"
 
