@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.fuck.iab.HookedApp
+import com.fuck.iab.HookedProviders
 import com.fuck.iab.R
 import com.fuck.iab.RunningProcess
 import com.fuck.iab.RunningState
@@ -125,6 +126,11 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
     }
 
     private fun stateLabel(app: HookedApp): String {
+        // The stores the module hooks itself never run a script, so they must not read as one.
+        if (HookedProviders.handles(app.packageName)) {
+            return context.getString(R.string.home_script_hook)
+        }
+
         val script = app.script
 
         if (script == null) {
@@ -175,8 +181,12 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
     }
 }
 
-/** "covers 3 apps", or "not in scope" when the module never hooks that package. */
-fun coverageLabel(context: Context, coveredApps: Int, inScope: Boolean): String {
+/**
+ * What a script covers: a store handled by the module's own hook runs no script at all, an app
+ * outside the scope never runs one either, and otherwise it is one app per package.
+ */
+fun coverageLabel(context: Context, packageName: String, coveredApps: Int, inScope: Boolean): String {
+    if (HookedProviders.handles(packageName)) return context.getString(R.string.scripts_hook_handled)
     if (!inScope) return context.getString(R.string.scripts_not_in_scope)
     if (coveredApps == 1) return context.getString(R.string.scripts_covers_one)
     return context.getString(R.string.scripts_covers_many, coveredApps)

@@ -60,10 +60,14 @@ object AppScope : CoroutineScope {
 
 class MainModule : XposedModule() {
 
+    /**
+     * Stores handled by the hook below. The package list lives in [HookedProviders], because the
+     * manager app has to label these apps as hooked instead of scripted.
+     */
     val iabProviders = mapOf(
-        com_android_vending() to com_google_android_finsky_billing_iab_InAppBillingService(),
-        com_farsitel_bazaar() to com_farsitel_bazaar_inappbilling_service_InAppBillingService(),
-        ir_mservices_market() to ir_mservices_market_service_InAppBillingService()
+        HookedProviders.PLAY_STORE to com_google_android_finsky_billing_iab_InAppBillingService(),
+        HookedProviders.BAZAAR to com_farsitel_bazaar_inappbilling_service_InAppBillingService(),
+        HookedProviders.MYKET to ir_mservices_market_service_InAppBillingService()
     )
 
     lateinit var app: Application

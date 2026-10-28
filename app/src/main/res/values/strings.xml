@@ -40,6 +40,7 @@
     <string name="home_hooked_empty">No apps in the module scope yet.</string>
     <string name="home_script_none">no script</string>
     <string name="home_script_global">all apps script</string>
+    <string name="home_script_hook">built-in hook</string>
     <string name="home_script_disabled">disabled</string>
 
     <!-- scripts -->
@@ -56,6 +57,7 @@
     <string name="scripts_covers_one">covers 1 app</string>
     <string name="scripts_covers_many">covers %1$d apps</string>
     <string name="scripts_not_in_scope">not in scope</string>
+    <string name="scripts_hook_handled">handled by the module hook</string>
 
     <!-- details -->
     <string name="detail_file_local">Module file</string>
