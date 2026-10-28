@@ -69,7 +69,7 @@
             android:layout_marginTop="8dp"
             android:stretchColumns="1">
 
-            <TableRow>
+            <TableRow android:id="@+id/detailCoversRow">
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

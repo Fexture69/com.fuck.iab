@@ -55,7 +55,6 @@
     <string name="scripts_no_match">No matching app</string>
     <string name="scripts_nothing_matches">Nothing matches that search</string>
     <string name="filter_all">All</string>
-    <string name="scripts_covers_one">covers 1 app</string>
     <string name="scripts_covers_many">covers %1$d apps</string>
     <string name="scripts_not_in_scope">not in scope</string>
     <string name="scripts_hook_handled">handled by the module hook</string>
