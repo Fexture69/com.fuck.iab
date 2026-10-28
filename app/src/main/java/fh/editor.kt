@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -67,6 +68,10 @@ class editor : AppCompatActivity() {
         input = findViewById(R.id.editorInput)
         source = findViewById(R.id.editorSource)
 
+        val wrap = findViewById<CheckBox>(R.id.editorWrap)
+        wrap.setOnCheckedChangeListener { _, checked -> applyWrap(checked) }
+        applyWrap(wrap.isChecked)
+
         if (service == null) {
             Toast.makeText(this, R.string.toast_not_connected, Toast.LENGTH_SHORT).show()
         }
@@ -107,6 +112,12 @@ class editor : AppCompatActivity() {
 
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    /** Code scrolls sideways unless wrapping is asked for, so long lines stay on one line. */
+    private fun applyWrap(enabled: Boolean) {
+        input.setHorizontallyScrolling(!enabled)
+        input.requestLayout()
     }
 
     private fun load() {
