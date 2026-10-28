@@ -71,9 +71,10 @@
 
                     <TextView
                         android:id="@+id/hookedLabel"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center"
+                        android:lines="2"
                         android:text="@string/home_hooked"
                         android:textAppearance="?attr/textAppearanceLabelMedium" />
                 </LinearLayout>
@@ -101,9 +102,10 @@
                         android:textColor="?attr/colorPrimary" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center"
+                        android:lines="2"
                         android:text="@string/home_installed"
                         android:textAppearance="?attr/textAppearanceLabelMedium" />
                 </LinearLayout>
@@ -131,9 +133,10 @@
                         android:textColor="?attr/colorPrimary" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center"
+                        android:lines="2"
                         android:text="@string/home_enabled"
                         android:textAppearance="?attr/textAppearanceLabelMedium" />
                 </LinearLayout>

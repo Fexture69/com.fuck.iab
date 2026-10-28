@@ -28,7 +28,7 @@
     <string name="home_sync">Script store</string>
     <string name="home_never">never</string>
     <string name="home_hooked_title">Hooked apps</string>
-    <string name="home_hooked_running">Hooked apps · %1$d running</string>
+    <string name="home_hooked_running">%1$d of %2$d running</string>
     <string name="home_running">running</string>
     <string name="home_running_stale">running an old build</string>
     <string name="home_running_reloading">reloading</string>

@@ -66,7 +66,7 @@ class home : Fragment() {
 
                     val running = state.hookedApps.count { it.isRunning }
                     hookedLabel.text = if (running > 0) {
-                        getString(R.string.home_hooked_running, running)
+                        getString(R.string.home_hooked_running, running, state.scope)
                     } else {
                         getString(R.string.home_hooked)
                     }
