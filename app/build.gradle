@@ -38,7 +38,8 @@ android {
         abi {
             enable true
             reset()
-            include "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
+            // Only the two ABIs the module is used on; the devkit is built for these.
+            include "arm64-v8a", "armeabi-v7a"
             universalApk true
         }
     }

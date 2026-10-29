@@ -87,7 +87,7 @@ abi_for() {
 }
 
 # Only the ABIs the module ships: arm64-v8a and armeabi-v7a.
-MACHINES=(android-arm64 android-arm android-x86_64 android-x86)
+MACHINES=(android-arm64 android-arm)
 
 LIBS_DIR="$OUT/app/src/main/libs"
 mkdir -p "$LIBS_DIR"
