@@ -24,7 +24,9 @@ data class ScriptInfo(
     /** Apps this script runs in: every app in scope for the all-apps script, one for a package. */
     val coveredApps: Int,
     /** Whether the module hooks this package at all, which is what makes the script run. */
-    val inScope: Boolean
+    val inScope: Boolean,
+    /** Whether the app is still on the device, so its name and icon are available. */
+    val installed: Boolean
 )
 
 /** Everything the detail sheet can say about one script. */
@@ -38,7 +40,8 @@ data class ScriptDetails(
     val hasUserScript: Boolean,
     val enabled: Boolean,
     val coveredApps: Int,
-    val inScope: Boolean
+    val inScope: Boolean,
+    val installed: Boolean
 )
 
 /** How the module code inside a running process relates to the installed module. */
@@ -153,7 +156,12 @@ object ScriptStore {
 
     // ---- inventory -------------------------------------------------------------
 
-    fun inventory(context: Context, service: XposedService?, scope: Set<String> = emptySet()): List<ScriptInfo> {
+    fun inventory(
+        context: Context,
+        service: XposedService?,
+        scope: Set<String> = emptySet(),
+        scopeConfirmed: Boolean = true
+    ): List<ScriptInfo> {
         val files = if (service != null) RemoteFiles.list(service) else emptySet()
         val bundled = bundledScripts(context)
         val disabled = if (service != null) disabledApps(service) else emptySet()
@@ -166,6 +174,7 @@ object ScriptStore {
         return names.map { packageName ->
             val user = users[packageName]
             val builtIn = bundled[packageName]
+            val installed = isInstalled(context, packageName)
 
             val source: ScriptSource
             val size: Int
@@ -182,7 +191,9 @@ object ScriptStore {
                 author = builtIn?.first?.let { authorOf(it) }
             }
 
-            val inScope = packageName == ALL_APPS || scope.contains(packageName)
+            // While the framework has not reported the scope, claiming an app is out of it
+            // would be wrong, so nothing is flagged until the answer is known.
+            val inScope = packageName == ALL_APPS || !scopeConfirmed || scope.contains(packageName)
 
             ScriptInfo(
                 packageName = packageName,
@@ -192,8 +203,24 @@ object ScriptStore {
                 enabled = !disabled.contains(packageName),
                 hasUserScript = user != null,
                 coveredApps = if (packageName == ALL_APPS) scope.size else if (inScope) 1 else 0,
-                inScope = inScope
+                inScope = inScope,
+                installed = installed
             )
+        }.sortedWith(
+            // Apps that are still around come first, since those are the ones a script can act on.
+            compareByDescending<ScriptInfo> { it.installed }
+                .thenBy { appLabel(context, it.packageName).lowercase(Locale.US) }
+        )
+    }
+
+    /** Whether [packageName] is installed, so the list can say when it is not. */
+    fun isInstalled(context: Context, packageName: String): Boolean {
+        if (packageName == ALL_APPS) return true
+        return try {
+            context.packageManager.getApplicationInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -264,7 +291,8 @@ object ScriptStore {
             hasUserScript = files.contains(userFile),
             enabled = service == null || packageName !in disabledApps(service),
             coveredApps = if (packageName == ALL_APPS) scoped.size else 1,
-            inScope = packageName == ALL_APPS || scoped.contains(packageName)
+            inScope = packageName == ALL_APPS || scoped.contains(packageName),
+            installed = isInstalled(context, packageName)
         )
     }
 

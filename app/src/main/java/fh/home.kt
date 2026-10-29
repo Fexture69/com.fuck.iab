@@ -187,8 +187,15 @@ private class AppAdapter(private val context: Context) : ListAdapter<HookedApp, 
  * What the script covers, or null when there is nothing worth saying. A script that covers one
  * app says nothing the row does not already show, so that case stays out.
  */
-fun coverageLabel(context: Context, packageName: String, coveredApps: Int, inScope: Boolean): String? {
+fun coverageLabel(
+    context: Context,
+    packageName: String,
+    coveredApps: Int,
+    inScope: Boolean,
+    installed: Boolean
+): String? {
     if (HookedProviders.handles(packageName)) return context.getString(R.string.scripts_hook_handled)
+    if (!installed) return context.getString(R.string.scripts_not_installed)
     if (!inScope) return context.getString(R.string.scripts_not_in_scope)
     if (coveredApps <= 1) return null
     return context.getString(R.string.scripts_covers_many, coveredApps)

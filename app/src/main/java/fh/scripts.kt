@@ -179,7 +179,9 @@ class scripts : Fragment() {
         }
         view.findViewById<TextView>(R.id.detailSummary).text = summary.joinToString(" · ")
 
-        val covers = coverageLabel(context, details.packageName, details.coveredApps, details.inScope)
+        val covers = coverageLabel(
+            context, details.packageName, details.coveredApps, details.inScope, details.installed
+        )
         view.findViewById<TextView>(R.id.detailCovers).text = covers ?: ""
         view.findViewById<View>(R.id.detailCoversRow).isVisible = covers != null
 
@@ -322,13 +324,18 @@ private class ScriptAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val item = getItem(position)
 
-        holder.label.text = if (item.packageName == ScriptStore.ALL_APPS) {
-            context.getString(R.string.scripts_all_apps)
-        } else {
-            ScriptStore.appLabel(context, item.packageName)
+        val isAllApps = item.packageName == ScriptStore.ALL_APPS
+
+        holder.label.text = when {
+            isAllApps -> context.getString(R.string.scripts_all_apps)
+            item.installed -> ScriptStore.appLabel(context, item.packageName)
+            // Nothing but the package name is known for an app that is gone.
+            else -> item.packageName
         }
 
+        // The package name would only repeat the label for an app that is not installed.
         holder.packageName.text = item.packageName
+        holder.packageName.isVisible = isAllApps || item.installed
 
         val parts = mutableListOf(sourceLabel(context, item.source))
 
@@ -336,7 +343,9 @@ private class ScriptAdapter(
         item.author?.let { parts += it }
 
         holder.meta.text = parts.joinToString(" · ")
-        val covers = coverageLabel(context, item.packageName, item.coveredApps, item.inScope)
+        val covers = coverageLabel(
+            context, item.packageName, item.coveredApps, item.inScope, item.installed
+        )
         holder.covers.text = covers ?: ""
         holder.covers.isVisible = covers != null
         holder.icon.setImageDrawable(

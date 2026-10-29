@@ -245,7 +245,7 @@ class h(application: Application) : AndroidViewModel(application) {
         val context = getApplication<Application>()
 
         val (scope, scopeConfirmed) = resolveScope(context, service)
-        val scripts = ScriptStore.inventory(context, service, scope.toSet())
+        val scripts = ScriptStore.inventory(context, service, scope.toSet(), scopeConfirmed)
 
         return Loaded(
             scripts = scripts,

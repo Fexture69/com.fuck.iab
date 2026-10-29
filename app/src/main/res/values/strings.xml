@@ -58,6 +58,7 @@
     <string name="filter_all">All</string>
     <string name="scripts_covers_many">covers %1$d apps</string>
     <string name="scripts_not_in_scope">not in scope</string>
+    <string name="scripts_not_installed">not installed</string>
     <string name="scripts_hook_handled">handled by the module hook</string>
 
     <!-- details -->
