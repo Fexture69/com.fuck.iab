@@ -80,49 +80,32 @@ abstract class CompileFridaScriptsTask extends DefaultTask {
 
     @TaskAction
     void run() {
-        def srcDir = scriptsSrcDir.get().asFile
         def workDir = scriptsWorkingDir.get().asFile
         def outDir = outputDir.get().asFile
 
+        // build.js compiles every script in scripts/src, including the global one that
+        // needs different flags, and clears the files of removed scripts first.
+        if (!new File(workDir, 'node_modules/frida-compile').exists()) {
+            throw new GradleException(
+                    "Frida scripts cannot be compiled: run `npm install` in ${workDir.path} first.")
+        }
+
         outDir.mkdirs()
 
-        def staleFiles = outDir.listFiles { f -> f.isFile() && f.name.endsWith('.js') } ?: []
-        staleFiles.each { f ->
-            logger.lifecycle("Removed stale: ${f.name}")
-            f.delete()
-        }
+        logger.lifecycle("Compiling Frida scripts into ${outDir.path}")
 
         def isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows()
-        def npxCommand = isWindows ? 'npx.cmd' : 'npx'
 
-        def scriptFiles = srcDir.listFiles { f ->
-            f.isFile() && f.name.endsWith('.ts')
-        } ?: []
-
-        if (scriptFiles.size() == 0) {
-            logger.warn("No .ts files found under ${srcDir.path}")
-        }
-
-        scriptFiles.each { entry ->
-            def packageName = entry.name - '.ts'
-            def outputFile = new File(outDir, "${packageName}.js")
-
-            logger.lifecycle("Compiling: ${entry.name} -> assets/scripts/${packageName}.js")
-
-            execOperations.exec {
-                workingDir = workDir
-                commandLine npxCommand, 'frida-compile',
-                        entry.absolutePath,
-                        '-o', outputFile.absolutePath,
-                        '-c', '-S', '-B', 'iife'
-            }
+        execOperations.exec {
+            workingDir = workDir
+            commandLine isWindows ? 'node.exe' : 'node', 'build.js', '--all'
         }
     }
 }
 
 tasks.register('compileFridaScripts', CompileFridaScriptsTask) {
     group = 'frida'
-    description = 'Compile each TypeScript script into assets/scripts/<package>.js'
+    description = 'Compile the scripts in scripts/src into assets/scripts/<package>.js'
 
     scriptsSrcDir.set(layout.projectDirectory.dir('../scripts/src'))
     scriptsWorkingDir.set(layout.projectDirectory.dir('../scripts'))
@@ -130,4 +113,9 @@ tasks.register('compileFridaScripts', CompileFridaScriptsTask) {
 
     inputs.dir(scriptsSrcDir)
     outputs.dir(outputDir)
+}
+
+// The assets have to exist before they are merged, so every build compiles them.
+tasks.named('preBuild') {
+    dependsOn 'compileFridaScripts'
 }
