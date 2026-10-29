@@ -80,7 +80,7 @@ ANDROID_NDK_ROOT=~/Android/Sdk/ndk/29.0.14206865 bash ./build-frida-gum.sh frida
 ```
 cd scripts
 npm ci
-npm install --no-save https://github.com/frida/frida-java-bridge/archive/b38a5b647d3e6b72aa19bcf8eb5e41c550a0e622.tar.gz
+npm install --no-save https://github.com/staleroot/frida-java-bridge/archive/55e0dc8a26dd7b858fbcae55a93d16826e576c64.tar.gz
 mkdir -p libs && printf 'export { default } from "frida-java-bridge";\n' > libs/frida-java-bridge.js
 ```
 

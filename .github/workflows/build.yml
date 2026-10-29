@@ -18,8 +18,10 @@ env:
   GUM_NDK_VERSION: "29.0.14206865"
   NDK_VERSION: "30.0.16248370"
   CMAKE_VERSION: "3.22.1"
-  # Revision of frida-java-bridge that carries the Android 17 ART fix.
-  JAVA_BRIDGE_REV: "b38a5b647d3e6b72aa19bcf8eb5e41c550a0e622"
+  # frida-java-bridge with the Android 17 ART fix and the opt-in JVMTI opt-out that
+  # global.js relies on. Loading the JVMTI plugin on a non-debuggable runtime aborts
+  # ART on some devices, so the flag has to be honoured.
+  JAVA_BRIDGE_URL: "https://github.com/staleroot/frida-java-bridge/archive/55e0dc8a26dd7b858fbcae55a93d16826e576c64.tar.gz"
 
 jobs:
   apk:
@@ -83,7 +85,7 @@ jobs:
         working-directory: scripts
         run: |
           npm ci
-          npm install --no-save "https://github.com/frida/frida-java-bridge/archive/$JAVA_BRIDGE_REV.tar.gz"
+          npm install --no-save "$JAVA_BRIDGE_URL"
           mkdir -p libs
           printf 'export { default } from "frida-java-bridge";\n' > libs/frida-java-bridge.js
 
