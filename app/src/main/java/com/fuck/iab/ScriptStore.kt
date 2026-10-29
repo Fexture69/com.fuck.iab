@@ -167,9 +167,11 @@ object ScriptStore {
         val disabled = if (service != null) disabledApps(service) else emptySet()
         val users = userEntries(context, files)
 
+        // The all-apps script runs everywhere and is not an app of its own, so the list of
+        // per-app scripts leaves it out.
         val names = sortedSetOf<String>()
-        names += users.keys
-        names += bundled.keys
+        names += users.keys.filter { it != ALL_APPS }
+        names += bundled.keys.filter { it != ALL_APPS }
 
         return names.map { packageName ->
             val user = users[packageName]
