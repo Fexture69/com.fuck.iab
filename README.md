@@ -21,7 +21,10 @@ https://github.com/user-attachments/assets/baa25c2c-baaf-4e84-86e8-51e9f4545a4a
 ## Features
 
 - Support for restoring previously purchased items.
-- Custom Frida Scripts.
+- Custom Frida scripts, compiled into the APK per app.
+- Manager app with Home, Scripts and Logs pages.
+- Per-app script switches, a script editor and a revert to the bundled version.
+- Live module log, including the output of the running scripts.
 
 ## Custom Frida Scripts
 
@@ -35,6 +38,10 @@ scripts/src/
 ```
 
 `global.js` is loaded for every app, before anything else. If a matching `<package_name>.js` file also exists, it runs right after the global script.
+
+The scripts in `scripts/src` are compiled into `assets/scripts` during the build, so the module carries them itself. Only `global.js` has imports to bundle (the il2cpp bridge and the Java bridge); the per-app scripts are plain scripts that use the `Java` and `Il2Cpp` globals that `global.js` provides.
+
+A script can be edited in the manager app. The saved copy lives in the module's shared directory and is used instead of the bundled script until you pick **Restore bundled version**, and the switch on the Scripts page stops a script from running for that app without touching the APK.
 
 ### Custom Script Examples
 
@@ -56,6 +63,41 @@ Please include:
 - The package name of the app/game
 - The custom script
 - A brief description of what it does
+
+## Building
+
+Requirements: JDK 17, the Android SDK with NDK `30.0.16248370` and CMake `3.22.1`, Node 20, and NDK `29.0.14206865` for frida-gum, which needs the older revision.
+
+The native wrapper links a QuickJS-only gumjs devkit built from source, so it has to exist before Gradle runs:
+
+```
+git clone --depth 1 --branch 17.24.3 --recurse-submodules https://github.com/frida/frida-gum.git frida-gum
+ANDROID_NDK_ROOT=~/Android/Sdk/ndk/29.0.14206865 bash ./build-frida-gum.sh frida-gum .
+```
+
+`global.js` imports `scripts/libs/frida-java-bridge.js`, which git does not track. Create it once with the package it re-exports:
+
+```
+cd scripts
+npm ci
+npm install --no-save https://github.com/frida/frida-java-bridge/archive/b38a5b647d3e6b72aa19bcf8eb5e41c550a0e622.tar.gz
+mkdir -p libs && printf 'export { default } from "frida-java-bridge";\n' > libs/frida-java-bridge.js
+```
+
+Then build. `compileFridaScripts` runs before `preBuild`, so the scripts are compiled automatically:
+
+```
+./gradlew assembleDebug
+```
+
+The APKs are produced for `arm64-v8a` and `armeabi-v7a`, plus a universal one. A release build is only signed when the keystore is available:
+
+```
+KEYSTORE_FILE=/path/to/keystore.jks KEYSTORE_PASSWORD=... KEY_ALIAS=... KEY_PASSWORD=... \
+  ./gradlew assembleRelease
+```
+
+GitHub Actions runs the same steps on pushes and pull requests, and publishes the debug and signed release APKs as artifacts.
 
 ## Telegram Channel
 
