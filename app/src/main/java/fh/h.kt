@@ -172,7 +172,6 @@ class h(application: Application) : AndroidViewModel(application) {
     val state = _state.asStateFlow()
 
     private var currentService: XposedService? = null
-    private var lastScope: List<String> = emptyList()
 
     /** Called when the framework connection comes up or goes away. */
     fun attachService(service: XposedService?) {

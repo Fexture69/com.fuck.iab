@@ -15,7 +15,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.fuck.iab.R
-import com.fuck.iab.ScriptSource
 import com.fuck.iab.ScriptStore
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton

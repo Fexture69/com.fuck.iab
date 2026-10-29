@@ -31,8 +31,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
-import java.text.DateFormat
-import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -171,7 +169,6 @@ class scripts : Fragment() {
 
     private fun bindDetails(view: View, details: ScriptDetails) {
         val context = requireContext()
-        val dateFormat = DateFormat.getDateTimeInstance()
 
         // Source, size and author, once each, on one line.
         val summary = buildList {
@@ -192,24 +189,7 @@ class scripts : Fragment() {
         view.findViewById<TextView>(R.id.detailFile).text = details.file ?: "-"
         view.findViewById<View>(R.id.detailFileRow).isVisible = details.file != null
 
-        view.findViewById<TextView>(R.id.detailPublished).text = details.publishedAt?.let {
-            dateFormat.format(Date(it))
-        } ?: "-"
-        view.findViewById<View>(R.id.detailPublishedRow).isVisible = details.publishedAt != null
-
-        view.findViewById<TextView>(R.id.detailSynced).text = details.syncedAt?.let {
-            dateFormat.format(Date(it))
-        } ?: "-"
-        view.findViewById<View>(R.id.detailSyncedRow).isVisible = details.syncedAt != null
-
-        // One checksum, with the verdict for remote copies only.
         view.findViewById<TextView>(R.id.detailChecksum).text = details.sha256 ?: "-"
-
-        val checksumNote = view.findViewById<TextView>(R.id.detailChecksumNote)
-        checksumNote.isVisible = details.matchesManifest != null
-        checksumNote.setText(
-            if (details.matchesManifest == true) R.string.detail_matches else R.string.detail_differs
-        )
     }
 
     // ---- new script picker -----------------------------------------------------

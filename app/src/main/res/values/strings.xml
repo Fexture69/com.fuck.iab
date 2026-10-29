@@ -14,14 +14,12 @@
     <string name="nav_logs">Logs</string>
 
     <!-- actions -->
-    <string name="action_refresh">Refresh scripts</string>
     <string name="action_new_script">New script</string>
     <string name="action_revert">Remove user script</string>
     <string name="action_restore">Restore bundled version</string>
     <string name="action_theme">Theme</string>
     <string name="action_theme_light">Switch to light theme</string>
     <string name="action_theme_dark">Switch to dark theme</string>
-    <string name="action_add">Add</string>
     <string name="action_cancel">Cancel</string>
 
     <!-- home -->
@@ -65,12 +63,8 @@
     <!-- details -->
     <string name="detail_file_local">Module file</string>
     <string name="detail_covers">Covers</string>
-    <string name="detail_published">Published</string>
-    <string name="detail_synced">Downloaded</string>
     <string name="detail_status">Status</string>
     <string name="detail_checksum">SHA-256</string>
-    <string name="detail_matches">matches the published manifest</string>
-    <string name="detail_differs">does not match the published manifest</string>
     <string name="status_enabled">enabled</string>
     <string name="status_disabled">disabled</string>
     <string name="action_edit">Edit script</string>
@@ -97,9 +91,4 @@
     <string name="toast_restore_failed">Could not restore, nothing was changed</string>
     <string name="toast_not_connected">Not connected to the Xposed service.</string>
     <string name="toast_package_required">Enter a package name</string>
-    <string name="syncing">Syncing...</string>
-    <string name="sync_failed">Sync failed: %1$s</string>
-    <string name="sync_result">Synced: %1$d downloaded, %2$d removed, %3$d total</string>
-    <string name="sync_never">Not synced yet</string>
-    <string name="sync_last">Last sync: %1$s</string>
 </resources>

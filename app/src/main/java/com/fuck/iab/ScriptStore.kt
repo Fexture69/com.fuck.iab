@@ -35,9 +35,6 @@ data class ScriptDetails(
     val author: String?,
     val sha256: String?,
     val file: String?,
-    val matchesManifest: Boolean?,
-    val publishedAt: Long?,
-    val syncedAt: Long?,
     val hasUserScript: Boolean,
     val enabled: Boolean,
     val coveredApps: Int,
@@ -264,9 +261,6 @@ object ScriptStore {
             author = text?.let { authorOf(it) },
             sha256 = checksum,
             file = file,
-            matchesManifest = null,
-            publishedAt = null,
-            syncedAt = null,
             hasUserScript = files.contains(userFile),
             enabled = service == null || packageName !in disabledApps(service),
             coveredApps = if (packageName == ALL_APPS) scoped.size else 1,
@@ -484,16 +478,6 @@ object ScriptStore {
                 .distinct()
         } catch (e: Exception) {
             emptyList()
-        }
-    }
-
-    fun isInstalled(context: Context, packageName: String): Boolean {
-        if (packageName == ALL_APPS) return true
-        return try {
-            context.packageManager.getApplicationInfo(packageName, 0)
-            true
-        } catch (e: Exception) {
-            false
         }
     }
 
