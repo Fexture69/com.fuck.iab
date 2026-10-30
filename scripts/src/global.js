@@ -2,17 +2,10 @@ import "frida-il2cpp-bridge";
 
 import JavaBridge from "frida-java-bridge";
 
-export const Java = JavaBridge
+export const Java = JavaBridge;
 
+globalThis.Java = JavaBridge;
 globalThis.FRIDA_JAVA_BRIDGE_DISABLE_JVMTI = true;
-
-try { APP_SCRIPT_GOES_HERE } catch(e) { console.log(e) }
-
-try { USER_SCRIPT_GOES_HERE } catch(e) { console.log(e) }
-
-if(globalThis["DONT_SEND_READY"] === undefined) {
-    send("ready")
-}
 
 export function getMethodOverloadFromMethodData(methodData) {
     const declaredClassName = methodData.getDeclaredClass().getName();
@@ -286,4 +279,24 @@ export function findMethodInClassByInvokedMethodNames(classData, methodNames) {
     }
 
     return Java.cast(results.get(0), MethodData);
+}
+
+globalThis.getMethodOverloadFromMethodData = getMethodOverloadFromMethodData;
+globalThis.findFactoryByClassName = findFactoryByClassName;
+globalThis.findClass = findClass;
+globalThis.toast = toast;
+globalThis.getContext = getContext;
+globalThis.findClassByStrings = findClassByStrings;
+globalThis.findMethodInClassByReturnType = findMethodInClassByReturnType;
+globalThis.findMethodInClassByStringsAndNumbers = findMethodInClassByStringsAndNumbers;
+globalThis.findMethodInClassByParamTypes = findMethodInClassByParamTypes;
+globalThis.printMethods = printMethods;
+globalThis.findMethodInClassByInvokedMethodNames = findMethodInClassByInvokedMethodNames;
+
+try { APP_SCRIPT_GOES_HERE } catch(e) { console.log(e) }
+
+try { USER_SCRIPT_GOES_HERE } catch(e) { console.log(e) }
+
+if(globalThis["DONT_SEND_READY"] === undefined) {
+    send("ready")
 }
