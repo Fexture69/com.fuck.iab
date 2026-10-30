@@ -1,6 +1,6 @@
 import "frida-il2cpp-bridge";
 
-import JavaBridge from "../libs/frida-java-bridge.js";
+import JavaBridge from "frida-java-bridge";
 
 export const Java = JavaBridge
 

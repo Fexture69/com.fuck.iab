@@ -1,5 +1,6 @@
 package com.fuck.iab
 
+import android.util.Log
 import android.app.Activity
 import android.app.Application
 import android.app.Instrumentation
@@ -13,6 +14,8 @@ import android.os.Bundle
 import android.os.IBinder
 import android.widget.Toast
 import com.fuck.iab.NativeBridge.startScript
+import com.fuck.iab.hooks.EntitlementHooks
+import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
@@ -34,7 +37,6 @@ import java.util.zip.ZipFile
 import kotlin.time.Duration.Companion.seconds
 
 object NativeBridge {
-
     lateinit var dexKitBridge: DexKitBridge
 
     init {
@@ -72,58 +74,37 @@ class MainModule : XposedModule() {
     var scriptAuthor: String? = null
 
     companion object {
-//        const val TAG = "FKIAB"
-
         init {
             System.loadLibrary(dexkit())
         }
     }
 
-    private fun log(text: String) {
-//        log(Log.INFO, TAG, text)
-    }
+    private fun log(text: String) {}
 
-    override fun onModuleLoaded(param: ModuleLoadedParam) {
-//        log(Log.INFO, TAG, "onModuleLoaded: " + param.processName)
-//        log(Log.INFO, TAG, "framework: $frameworkName($frameworkVersionCode) API $apiVersion")
-
-        val hasProp: (Long) -> Boolean = { prop -> frameworkProperties.and(prop) != 0L }
-//        log(Log.INFO, TAG, "system supported: " + hasProp(PROP_CAP_SYSTEM))
-//        log(Log.INFO, TAG, "remote supported: " + hasProp(PROP_CAP_REMOTE))
-//        log(Log.INFO, TAG, "api protection: " + hasProp(PROP_RT_API_PROTECTION))
-    }
+    override fun onModuleLoaded(param: ModuleLoadedParam) {}
 
     override fun onPackageLoaded(param: PackageLoadedParam) {
-//        log(Log.INFO, TAG, "onPackageLoaded: " + param.packageName)
-
         if (!param.isFirstPackage) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//            log(Log.INFO, TAG, "default classloader is " + param.defaultClassLoader)
             packageLoaded(param.packageName, param.applicationInfo, param.defaultClassLoader)
         }
     }
 
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
-//        log(Log.INFO, TAG, "onPackageReady: " + param.packageName)
-//        log(Log.INFO, TAG, "app classloader is " + param.classLoader)
-//        log(Log.INFO, TAG, "app acf is " + param.appComponentFactory)
-//        log(Log.INFO, TAG, "module apk path: " + this.moduleApplicationInfo.sourceDir)
-
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             packageLoaded(param.packageName, param.applicationInfo, param.classLoader)
         }
     }
 
-    override fun onSystemServerStarting(param: XposedModuleInterface.SystemServerStartingParam) {
-//        log(Log.INFO, TAG, "onSystemServerStarting, system classloader: " + param.classLoader)
-    }
+    override fun onSystemServerStarting(param: XposedModuleInterface.SystemServerStartingParam) {}
 
     private fun packageLoaded(
         packageName: String,
         applicationInfo: ApplicationInfo,
         classLoader: ClassLoader
     ) {
+        Log.e("FKIAB", "packageLoaded: $packageName (appClass=${applicationInfo.className})")
         try {
             if (iabProviders.containsKey(packageName)) {
                 val bridge = DexKitBridge.create(applicationInfo.sourceDir)
@@ -140,12 +121,14 @@ class MainModule : XposedModule() {
                 val applicationClass = classLoader.loadClass(applicationClassName)
                 val onCreate = applicationClass.getMethod(onCreate())
 
+                Log.e("FKIAB", "Hooking onCreate on $applicationClassName")
                 hook(onCreate).intercept { chain ->
+                    Log.e("FKIAB", "Application.onCreate intercepted for $packageName")
                     app = chain.thisObject as Application
 
                     val bridge = DexKitBridge.create(applicationInfo.sourceDir)
                     NativeBridge.dexKitBridge = bridge
-
+                    
                     hookOnServiceConnected(classLoader, bridge)
                     hookPurchaseVerificationMethods(classLoader, bridge)
 
@@ -161,40 +144,49 @@ class MainModule : XposedModule() {
                         }
                         scriptAuthor = author
                         val userScript = readUserScript()
-                        var combined = global.replace(APP_SCRIPT_GOES_HERE(), userScript ?: "")
-                        combined = combined.replace(USER_SCRIPT_GOES_HERE(), appScript)
+                        var combined = global.replace(APP_SCRIPT_GOES_HERE(), appScript)
+                        combined = combined.replace(USER_SCRIPT_GOES_HERE(), userScript ?: "")
                         combined.ifEmpty { null }
                     } else null
 
+                    Log.e("FKIAB", "Final script ready: ")
                     if (script != null) {
-                        AppScope.launch {
-                            NativeBridge.payloads.collect { payload ->
-                                if (payload == ready()) {
-//                                log("frida is alive. lets call on create")
-                                    latch.countDown()
+                        try {
+                            Log.e("FKIAB", "Calling NativeBridge.startScript for ")
+                            startScript(packageName, script)
+                            Log.e("FKIAB", "NativeBridge.startScript invoked successfully")
+                        } catch (e: Throwable) {
+                            Log.e("FKIAB", "startScript error: ", e)
+                        }
+                        return@intercept chain.proceed()
+                    } else {
+                        Log.e("FKIAB", "script was null, running fallback")
+                        if (packageName == "com.adguard.android" || packageName == "com.life360.android.safetymapd") {
+                            EntitlementHooks.install(packageName, classLoader, bridge) { method ->
+                                val rt = method.returnType
+                                if (rt == String::class.java) {
+                                    val name = method.name
+                                    when (name) {
+                                        "getProductId" -> hook(method).intercept { "premium_4999_yearly_1" }
+                                        else -> hook(method).intercept { "9" }
+                                    }
+                                } else if (rt == Integer::class.javaPrimitiveType || rt == java.lang.Integer::class.java) {
+                                    hook(method).intercept { 0x7fffffff }
+                                } else if (rt == java.lang.Long.TYPE || rt == java.lang.Long::class.java) {
+                                    hook(method).intercept { 0x7fffffffffffffffL }
+                                } else if (rt == Boolean::class.javaPrimitiveType || rt == java.lang.Boolean::class.java) {
+                                    hook(method).intercept { true }
+                                } else if (rt.isEnum) {
+                                    hook(method).intercept { rt.enumConstants?.firstOrNull { it.toString() == "ANNUAL" || it.toString() == "PAID" } ?: rt.enumConstants?.firstOrNull() }
+                                } else if (rt == java.lang.Void.TYPE) {
+                                    hook(method).intercept { null }
+                                } else {
+                                    hook(method).intercept { null }
                                 }
+                                null
                             }
                         }
-
-//                    log("before start script package name: $packageName")
-                        startScript(packageName, script)
-//                    log("after start script")
-
-                        AppScope.launch {
-                            delay(3.seconds)
-//                        log("timeout passed. frida is dead. lets call on create")
-                            latch.countDown()
-                        }
-
-                        try {
-                            latch.await()
-//                        log("calling on create")
-                            chain.proceed()
-                        } catch (e: InterruptedException) {
-                            Thread.currentThread().interrupt()
-                        }
-                    } else {
-                        chain.proceed()
+                        return@intercept chain.proceed()
                     }
                 }
 
@@ -223,9 +215,8 @@ class MainModule : XposedModule() {
                     chain.proceed()
                 }
             }
-        } catch (e: Exception) {
-//            log(e.message!!)
-//            e.printStackTrace()
+        } catch (e: Throwable) {
+            Log.e("FKIAB", "Exception in packageLoaded: ", e)
         }
     }
 
@@ -237,44 +228,30 @@ class MainModule : XposedModule() {
                 }
             }
 
-//            log("found ${classes.size} android.content.ServiceConnection subclasses")
-
             classes.forEach { clazz ->
-//                log("----> ${clazz.name}")
-
                 clazz.methods.forEach {
                     if (it.name != onServiceConnected()) return@forEach
 
                     val onServiceConnectedMethod = it.getMethodInstance(classLoader)
-//                    log("hooking ${it.name}")
                     hook(onServiceConnectedMethod).intercept { chain ->
-
-                        val componentName = chain.args[0] as ComponentName
-                        val realBinder = chain.args[1] as IBinder
-
-//                        log("component name = $componentName")
-//                        log("binder = ${realBinder.javaClass}")
+                        val componentName = chain.args.getOrNull(0) as? ComponentName ?: return@intercept chain.proceed()
+                        val realBinder = chain.args.getOrNull(1) as? IBinder ?: return@intercept chain.proceed()
 
                         if (iabProviders[componentName.packageName] == componentName.className) {
                             val isGoogle = componentName.packageName == com_android_vending()
                             return@intercept chain.proceed(arrayOf(chain.args[0], FakeBinder(app, isGoogle, realBinder, ::log)))
                         }
-
                         return@intercept chain.proceed()
                     }
                 }
             }
-        } catch (e: Exception) {
-//            e.printStackTrace()
-//            log(Log.ERROR, TAG, e.message!!)
-        }
+        } catch (e: Exception) {}
     }
 
     private fun hookPurchaseVerificationMethods(classLoader: ClassLoader, bridge: DexKitBridge) {
         var methods = bridge.findMethod {
             matcher {
                 returnType = boolean()
-                // paramTypes(String::class.java, String::class.java, String::class.java)
                 usingStrings(
                     Purchase_verification_failed(),
                     Base64_decoding_failed()
@@ -284,13 +261,8 @@ class MainModule : XposedModule() {
         for (m in methods) {
             try {
                 val method = m.getMethodInstance(classLoader)
-//            log("hooking ${getMethodAsString(method)}")
-                hook(method).intercept {
-                    true
-                }
-            } catch (e: Exception) {
-
-            }
+                hook(method).intercept { true }
+            } catch (e: Exception) {}
         }
 
         methods = bridge.findMethod {
@@ -308,13 +280,8 @@ class MainModule : XposedModule() {
         for (m in methods) {
             try {
                 val method = m.getMethodInstance(classLoader)
-//                log("** hooking ${getMethodAsString(method)}")
-                hook(method).intercept {
-                    true
-                }
-            } catch (e: Exception) {
-
-            }
+                hook(method).intercept { true }
+            } catch (e: Exception) {}
         }
 
         methods = bridge.findMethod {
@@ -330,11 +297,10 @@ class MainModule : XposedModule() {
             }
         }
         for (m in methods) {
-            val method = m.getMethodInstance(classLoader)
-//            log("** hooking ${getMethodAsString(method)}")
-            hook(method).intercept {
-                java.lang.Boolean.TRUE
-            }
+            try {
+                val method = m.getMethodInstance(classLoader)
+                hook(method).intercept { java.lang.Boolean.TRUE }
+            } catch (e: Throwable) {}
         }
 
         try {
@@ -345,12 +311,8 @@ class MainModule : XposedModule() {
                     String::class.java,
                     String::class.java
                 )
-            ).intercept { chain ->
-                true
-            }
-        } catch (e: Exception) {
-
-        }
+            ).intercept { chain -> true }
+        } catch (e: Exception) {}
 
         try {
             val m = bridge.findMethod {
@@ -363,14 +325,9 @@ class MainModule : XposedModule() {
             }.singleOrNull()
             if (m != null) {
                 val method = m.getMethodInstance(classLoader)
-//            log("** hooking ${getMethodAsString(method)}")
-                hook(method).intercept { chain ->
-                    null
-                }
+                hook(method).intercept { chain -> null }
             }
-        } catch (e: Exception) {
-
-        }
+        } catch (e: Exception) {}
 
         try {
             val m = bridge.findMethod {
@@ -383,7 +340,6 @@ class MainModule : XposedModule() {
             }.singleOrNull()
             if (m != null) {
                 val method = m.getMethodInstance(classLoader)
-//            log("** hooking ${getMethodAsString(method)}")
                 hook(method).intercept { chain ->
                     if (chain.args[0] == com_ea_nimble_mtx_enableVerification()) {
                         return@intercept _false()
@@ -394,9 +350,7 @@ class MainModule : XposedModule() {
                     }
                 }
             }
-        } catch (e: Exception) {
-
-        }
+        } catch (e: Exception) {}
 
         try {
             val m = bridge.findMethod {
@@ -409,7 +363,6 @@ class MainModule : XposedModule() {
             }.singleOrNull()
             if (m != null) {
                 val method = m.getMethodInstance(classLoader)
-//                log("** hooking ${getMethodAsString(method)}")
                 hook(method).intercept { chain ->
                     val arg1 = chain.args[0] as String
                     val arg2 = chain.args[1] as String
@@ -417,22 +370,15 @@ class MainModule : XposedModule() {
 
                     if (arg1 == Appsflyer() && arg2 == didReceivePurchaseRevenueValidationInfo()) {
                         val json = JSONObject(arg3)
-
                         val success = json.getString(success())
                         val token = json.getString(token())
 
                         if (success == _false()) {
                             val prefs = app.getSharedPreferences(fuck_iab(), MODE_PRIVATE)
-
                             val value = prefs.getString(token, "")
-
                             if (value == "") return@intercept chain.proceed()
 
-                            val json = try {
-                                JSONObject(value!!)
-                            } catch (_: Exception) {
-                                return@intercept chain.proceed()
-                            }
+                            val json = try { JSONObject(value!!) } catch (_: Exception) { return@intercept chain.proceed() }
 
                             val map = HashMap<String, Any>()
                             val map2 = HashMap<String, Any>()
@@ -442,17 +388,9 @@ class MainModule : XposedModule() {
                             map2[productId()] = json.getString(productId())
                             map2[purchaseState()] = json.getInt(purchaseState())
                             map2[kind()] = inapp()
-                            map2[purchaseTimeMillis()] = try {
-                                json.getLong(purchaseTime()).toString()
-                            } catch (e: Exception) {
-                                System.currentTimeMillis().toString()
-                            }
+                            map2[purchaseTimeMillis()] = try { json.getLong(purchaseTime()).toString() } catch (e: Exception) { System.currentTimeMillis().toString() }
                             map2[consumptionState()] = 0
-                            map2[developerPayload()] = try {
-                                json.getString(developerPayload())
-                            } catch (e: Exception) {
-                                developerPayload()
-                            }
+                            map2[developerPayload()] = try { json.getString(developerPayload()) } catch (e: Exception) { developerPayload() }
                             map2[orderId()] = json.getString(orderId())
                             map2[purchaseType()] = 0
                             map2[acknowledgementState()] = 1
@@ -469,35 +407,84 @@ class MainModule : XposedModule() {
                     chain.proceed()
                 }
             }
-        } catch (e: Exception) {
-
+        } catch (e: Throwable) {
+            Log.e("FKIAB", "Exception in packageLoaded: ", e)
         }
     }
 
-    private fun readScriptForPackage(packageName: String): String? {
+    private fun isScriptDisabled(packageName: String): Boolean {
+        if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return false
+        return try {
+            val disabled = getRemotePreferences(fuck_iab())
+                .getStringSet(RemoteScripts.DISABLED_SCRIPTS_KEY, emptySet()) ?: return false
+            disabled.contains(packageName) || disabled.contains(global())
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun readUserScriptForPackage(packageName: String): String? {
+        if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return null
+        val name = RemoteScripts.userFileName(packageName)
+        return try {
+            if (listRemoteFiles().none { it == name }) return null
+            val pfd = openRemoteFile(name)
+            FileInputStream(pfd.fileDescriptor).use { it.readBytes().toString(Charsets.UTF_8) }
+                .takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun readRemoteScriptForPackage(packageName: String): String? {
+        if (frameworkProperties.and(XposedInterface.PROP_CAP_REMOTE) == 0L) return null
+        val name = RemoteScripts.fileName(packageName)
+        return try {
+            if (listRemoteFiles().none { it == name }) return null
+            val pfd = openRemoteFile(name)
+            FileInputStream(pfd.fileDescriptor).use { it.readBytes().toString(Charsets.UTF_8) }
+                .takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun readAssetScriptForPackage(packageName: String): String? {
         val apkPath = this.moduleApplicationInfo.sourceDir
         return try {
             ZipFile(apkPath).use { zip ->
-                val entry = zip.getEntry("${assets_scripts_()}$packageName${_js()}")
-                    ?: return null
+                val entry = zip.getEntry("${assets_scripts_()}$packageName${_js()}") ?: return null
                 zip.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
             }
-        } catch (e: Exception) {
-//            log("Failed to read script for $packageName: ${e.message}")
-            null
+        } catch (e: Exception) { null }
+    }
+
+    private fun readScriptForPackage(packageName: String): String? {
+        Log.e("FKIAB", "readScriptForPackage called for $packageName")
+        if (isScriptDisabled(packageName)) {
+            Log.e("FKIAB", "isScriptDisabled returned true for $packageName")
+            return null
         }
+        val user = readUserScriptForPackage(packageName)
+        if (user != null) {
+            Log.e("FKIAB", "readUserScriptForPackage found script for $packageName")
+            return user
+        }
+        val remote = readRemoteScriptForPackage(packageName)
+        if (remote != null) {
+            Log.e("FKIAB", "readRemoteScriptForPackage found script for $packageName")
+            return remote
+        }
+        val asset = readAssetScriptForPackage(packageName)
+        Log.e("FKIAB", "readAssetScriptForPackage for $packageName: ${asset != null}")
+        return asset
     }
 
     private fun readUserScript(): String? {
         return try {
             val pfd = openRemoteFile(user_script_js())
             FileInputStream(pfd.fileDescriptor).use { it.readBytes().toString(Charsets.UTF_8) }
-        } catch (e: FileNotFoundException) {
-            null
-        } catch (e: Exception) {
-            null
-        }
-//        return getRemotePreferences(fkiab()).getString(user_script_js(), "")
+        } catch (e: FileNotFoundException) { null } catch (e: Exception) { null }
     }
 
     fun extractAuthor(content: String): Pair<String, String> {
@@ -506,7 +493,7 @@ class MainModule : XposedModule() {
         val firstLine = if (newlineIndex == -1) content else content.substring(0, newlineIndex)
 
         return if (firstLine.startsWith(prefix)) {
-            val author = firstLine.removePrefix(prefix).trimEnd('\r').trim()/*.substringBefore(' ')*/
+            val author = firstLine.removePrefix(prefix).trimEnd('\r').trim()
             val rest = if (newlineIndex == -1) "" else content.substring(newlineIndex + 1)
             author to rest
         } else {

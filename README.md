@@ -22,6 +22,7 @@ https://github.com/user-attachments/assets/baa25c2c-baaf-4e84-86e8-51e9f4545a4a
 
 - Support for restoring previously purchased items.
 - Custom Frida Scripts.
+- Scripts are updated without a new apk release.
 
 ## Custom Frida Scripts
 
@@ -45,6 +46,23 @@ scripts/src/
 - Ultimate USB `com.mixapplications.ultimateusb`
 
 - Bike Race `com.topfreegames.bikeracefreeworld`
+
+### Remote Scripts
+
+Every build ships the compiled scripts as a fallback, and the module also reads them from
+its shared data directory. The manager app fetches the published scripts and writes them
+there, so a script added after the apk was built is picked up anyway.
+
+- Open the module app and use **Sync scripts** in the Script tab.
+- The app syncs by itself only once, when nothing has been downloaded yet. After that it
+  fetches only when you use **Refresh scripts**.
+- Downloads need a connection to the Xposed framework, since the files live in the
+  module's shared data directory.
+- Restart the app or game to run a script that was just updated.
+
+Scripts are published from `scripts/` with `npm run build:dist && npm run publish`, which
+pushes them to the `scripts-dist` branch of this repository. See
+[scripts/README.md](scripts/README.md) for the details.
 
 ### Contributing Custom Scripts
 

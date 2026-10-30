@@ -7,6 +7,7 @@
 #include <mutex>
 #include <thread>
 #include <jni.h>
+#include <dlfcn.h>
 
 #define LOG(...) __android_log_print(ANDROID_LOG_ERROR, "FKIAB", __VA_ARGS__)
 #define LOG_FRIDA(...) __android_log_print(ANDROID_LOG_ERROR, "FRIDA", __VA_ARGS__)
@@ -107,7 +108,12 @@ static void on_message(const gchar *message, GBytes *data, gpointer user_data) {
 
     if (type == "error") {
         std::string description;
-        if (extract_json_string_field(message, "description", description)) {
+        std::string stack;
+        extract_json_string_field(message, "description", description);
+        extract_json_string_field(message, "stack", stack);
+        if (!stack.empty()) {
+            LOG_FRIDA("[error] %s\n%s", description.c_str(), stack.c_str());
+        } else if (!description.empty()) {
             LOG_FRIDA("[error] %s", description.c_str());
         } else {
             LOG_FRIDA("[error] %s", message);
@@ -146,9 +152,30 @@ static void startFridaScript(const std::string &packageName, const std::string &
     }
 
     std::thread([packageName, jsSource]() {
+        void *jvmti_handle = dlopen("/apex/com.android.art/lib64/libopenjdkjvmti.so", RTLD_NOW | RTLD_GLOBAL);
+        if (jvmti_handle == nullptr) {
+            jvmti_handle = dlopen("libopenjdkjvmti.so", RTLD_NOW | RTLD_GLOBAL);
+        }
+        if (jvmti_handle != nullptr) {
+            typedef bool (*PluginInitFn)();
+            PluginInitFn init = (PluginInitFn) dlsym(jvmti_handle, "ArtPlugin_Initialize");
+            if (init != nullptr) {
+                bool res = init();
+                LOG("ArtPlugin_Initialize result: %d", res);
+            } else {
+                LOG("ArtPlugin_Initialize symbol not found in jvmti");
+            }
+        } else {
+            LOG("dlopen libopenjdkjvmti failed: %s", dlerror());
+        }
+
         std::call_once(gum_init_flag, []() {
             gum_init_embedded();
         });
+
+        GMainContext *context = g_main_context_new();
+        g_main_context_push_thread_default(context);
+        GMainLoop *loop = g_main_loop_new(context, FALSE);
 
         GError *error = nullptr;
         GumScriptBackend *backend = gum_script_backend_obtain_qjs();
@@ -165,6 +192,9 @@ static void startFridaScript(const std::string &packageName, const std::string &
         if (error) {
             LOG("Script compile error for %s: %s", packageName.c_str(), error->message);
             g_error_free(error);
+            g_main_loop_unref(loop);
+            g_main_context_pop_thread_default(context);
+            g_main_context_unref(context);
             return;
         }
 
@@ -173,10 +203,11 @@ static void startFridaScript(const std::string &packageName, const std::string &
 
         LOG("Script loaded for package: %s", packageName.c_str());
 
-        GMainContext *context = g_main_context_default();
-        while (true) {
-            g_main_context_iteration(context, TRUE);
-        }
+        g_main_loop_run(loop);
+
+        g_main_loop_unref(loop);
+        g_main_context_pop_thread_default(context);
+        g_main_context_unref(context);
     }).detach();
 }
 
@@ -215,5 +246,6 @@ Java_com_fuck_iab_NativeBridge_startScript(
     env->ReleaseStringUTFChars(jPackageName, pkgChars);
     env->ReleaseStringUTFChars(jScriptSource, srcChars);
 
+    LOG("Java_com_fuck_iab_NativeBridge_startScript called for %s (script len: %zu)", packageName.c_str(), scriptSource.size());
     startFridaScript(packageName, scriptSource);
 }
