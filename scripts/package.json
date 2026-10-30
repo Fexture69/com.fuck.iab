@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "node patch-bridge.mjs",
     "build": "node build.js",
     "build:all": "node build.js --all",
     "build:dist": "node build.js --dist",
