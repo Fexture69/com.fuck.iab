@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ dev, main, 'feat/**' ]
+    branches: [ dev, main, 'feat/**', 'fix/**' ]
     tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
@@ -27,6 +27,7 @@ jobs:
 
     outputs:
       version: ${{ steps.naming.outputs.version }}
+      has_release: ${{ steps.check-secrets.outputs.has_keystore }}
 
     steps:
       - uses: actions/checkout@v4
@@ -39,9 +40,6 @@ jobs:
 
       - name: Install NDK and CMake
         run: |
-          # The runner image ships cmdline-tools but no NDK matching the version
-          # app/build.gradle pins, so install it and accept the licences. AGP can
-          # then fetch any other missing component on its own.
           SDKMANAGER="$(ls "$ANDROID_SDK_ROOT"/cmdline-tools/*/bin/sdkmanager | tail -1)"
           echo "sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
@@ -71,8 +69,6 @@ jobs:
               || { echo "missing libfrida-gumjs.a for $abi"; exit 1; }
           done
 
-      # Keep the release APK's packaged Frida scripts in sync with the source,
-      # as the 1.6.4 release workflow did before assembling the APKs.
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -91,7 +87,19 @@ jobs:
           test -s app/src/main/assets/scripts/com.life360.android.safetymapd.js
           test -s app/src/main/assets/scripts/com.adguard.android.js
 
+      - name: Check signing secrets availability
+        id: check-secrets
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ] && [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
+            echo "has_keystore=true" >> "$GITHUB_OUTPUT"
+            echo "Release keystore detected."
+          else
+            echo "has_keystore=false" >> "$GITHUB_OUTPUT"
+            echo "No release keystore detected, building debug APKs only."
+          fi
+
       - name: Decode signing keystore
+        if: steps.check-secrets.outputs.has_keystore == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -99,11 +107,6 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          : "${KEYSTORE_BASE64:?Repository secret KEYSTORE_BASE64 is not set}"
-          : "${KEYSTORE_PASSWORD:?Repository secret KEYSTORE_PASSWORD is not set}"
-          : "${KEY_ALIAS:?Repository secret KEY_ALIAS is not set}"
-          : "${KEY_PASSWORD:?Repository secret KEY_PASSWORD is not set}"
-
           KEYSTORE_PATH="$RUNNER_TEMP/fkiab-ci.jks"
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
 
@@ -118,9 +121,15 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build APKs
-        run: ./gradlew assembleDebug assembleRelease --console=plain
+        run: |
+          if [ "${{ steps.check-secrets.outputs.has_keystore }}" = "true" ]; then
+            ./gradlew assembleDebug assembleRelease --console=plain
+          else
+            ./gradlew assembleDebug --console=plain
+          fi
 
       - name: Verify release APK signatures
+        if: steps.check-secrets.outputs.has_keystore == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -149,71 +158,79 @@ jobs:
 
           mkdir -p dist/release dist/debug
 
-          for apk in app/build/outputs/apk/release/*.apk; do
-            abi="$(basename "$apk" .apk)"
-            abi="${abi#app-}"
-            abi="${abi%-release}"
-            cp "$apk" "dist/release/com.fuck.iab-v$VERSION-$abi.apk"
-          done
+          if [ -d app/build/outputs/apk/release ]; then
+            for apk in app/build/outputs/apk/release/*.apk; do
+              [ -e "$apk" ] || continue
+              abi="$(basename "$apk" .apk)"
+              abi="${abi#app-}"
+              abi="${abi%-release}"
+              cp "$apk" "dist/release/com.fuck.iab-v$VERSION-$abi.apk"
+            done
+          fi
 
-          for apk in app/build/outputs/apk/debug/*.apk; do
-            abi="$(basename "$apk" .apk)"
-            abi="${abi#app-}"
-            abi="${abi%-debug}"
-            cp "$apk" "dist/debug/com.fuck.iab-v$VERSION-debug-$abi.apk"
-          done
+          if [ -d app/build/outputs/apk/debug ]; then
+            for apk in app/build/outputs/apk/debug/*.apk; do
+              [ -e "$apk" ] || continue
+              abi="$(basename "$apk" .apk)"
+              abi="${abi#app-}"
+              abi="${abi%-debug}"
+              cp "$apk" "dist/debug/com.fuck.iab-v$VERSION-debug-$abi.apk"
+            done
+          fi
 
-          ls -l dist/release dist/debug
+          ls -l dist/release dist/debug || true
 
-      # One artifact per APK, with the file name as the artifact name, so a download
-      # hands over the apk itself instead of a zip that has to be unpacked. Without
-      # archiving only a single file can be uploaded per step.
-      - name: Upload release arm64 apk
-        uses: actions/upload-artifact@v7
+      # Upload debug APKs
+      - name: Upload debug arm64 apk
+        uses: actions/upload-artifact@v4
         with:
+          name: com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-arm64-v8a
+          path: dist/debug/com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-arm64-v8a.apk
+          if-no-files-found: warn
+
+      - name: Upload debug armeabi-v7a apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-armeabi-v7a
+          path: dist/debug/com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-armeabi-v7a.apk
+          if-no-files-found: warn
+
+      - name: Upload debug universal apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-universal
+          path: dist/debug/com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-universal.apk
+          if-no-files-found: warn
+
+      # Upload release APKs (if signed)
+      - name: Upload release arm64 apk
+        if: steps.check-secrets.outputs.has_keystore == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: com.fuck.iab-v${{ steps.naming.outputs.version }}-arm64-v8a
           path: dist/release/com.fuck.iab-v${{ steps.naming.outputs.version }}-arm64-v8a.apk
-          archive: false
           if-no-files-found: error
 
       - name: Upload release armeabi-v7a apk
-        uses: actions/upload-artifact@v7
+        if: steps.check-secrets.outputs.has_keystore == 'true'
+        uses: actions/upload-artifact@v4
         with:
+          name: com.fuck.iab-v${{ steps.naming.outputs.version }}-armeabi-v7a
           path: dist/release/com.fuck.iab-v${{ steps.naming.outputs.version }}-armeabi-v7a.apk
-          archive: false
           if-no-files-found: error
 
       - name: Upload release universal apk
-        uses: actions/upload-artifact@v7
+        if: steps.check-secrets.outputs.has_keystore == 'true'
+        uses: actions/upload-artifact@v4
         with:
+          name: com.fuck.iab-v${{ steps.naming.outputs.version }}-universal
           path: dist/release/com.fuck.iab-v${{ steps.naming.outputs.version }}-universal.apk
-          archive: false
-          if-no-files-found: error
-
-      - name: Upload debug arm64 apk
-        uses: actions/upload-artifact@v7
-        with:
-          path: dist/debug/com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-arm64-v8a.apk
-          archive: false
-          if-no-files-found: error
-
-      - name: Upload debug armeabi-v7a apk
-        uses: actions/upload-artifact@v7
-        with:
-          path: dist/debug/com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-armeabi-v7a.apk
-          archive: false
-          if-no-files-found: error
-
-      - name: Upload debug universal apk
-        uses: actions/upload-artifact@v7
-        with:
-          path: dist/debug/com.fuck.iab-v${{ steps.naming.outputs.version }}-debug-universal.apk
-          archive: false
           if-no-files-found: error
 
   release:
     name: Publish release
     needs: apk
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && needs.apk.outputs.has_release == 'true'
     runs-on: ubuntu-latest
 
     permissions:
@@ -222,17 +239,17 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: com.fuck.iab-v${{ needs.apk.outputs.version }}-arm64-v8a.apk
+          name: com.fuck.iab-v${{ needs.apk.outputs.version }}-arm64-v8a
           path: dist
 
       - uses: actions/download-artifact@v4
         with:
-          name: com.fuck.iab-v${{ needs.apk.outputs.version }}-armeabi-v7a.apk
+          name: com.fuck.iab-v${{ needs.apk.outputs.version }}-armeabi-v7a
           path: dist
 
       - uses: actions/download-artifact@v4
         with:
-          name: com.fuck.iab-v${{ needs.apk.outputs.version }}-universal.apk
+          name: com.fuck.iab-v${{ needs.apk.outputs.version }}-universal
           path: dist
 
       - uses: softprops/action-gh-release@v2
