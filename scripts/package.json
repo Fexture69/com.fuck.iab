@@ -3,16 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.js",
-    "build:all": "node build.js --all",
-    "build:dist": "node build.js --dist",
-    "publish": "node publish.js"
+    "build": "node patch-bridge.mjs && node build.js",
+    "build:all": "node patch-bridge.mjs && node build.js --all",
+    "build:dist": "node patch-bridge.mjs && node build.js --dist",
+    "publish": "node publish.js",
+    "postinstall": "node patch-bridge.mjs"
   },
   "dependencies": {
     "frida-il2cpp-bridge": "^0.14.0"
   },
   "devDependencies": {
     "frida-compile": "^19.0.5",
-    "frida-java-bridge": "https://github.com/frida/frida-java-bridge/archive/b38a5b647d3e6b72aa19bcf8eb5e41c550a0e622.tar.gz"
+    "frida-java-bridge": "7.0.13"
   }
 }
