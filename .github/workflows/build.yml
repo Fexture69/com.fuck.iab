@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ ui, dev, main ]
+    branches: [ ui, dev, main, 'feat/**', 'fix/**' ]
   pull_request:
   workflow_dispatch:
 
@@ -98,19 +98,35 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          : "${KEYSTORE_BASE64:?Repository secret KEYSTORE_BASE64 is not set}"
-          : "${KEYSTORE_PASSWORD:?Repository secret KEYSTORE_PASSWORD is not set}"
-          : "${KEY_ALIAS:?Repository secret KEY_ALIAS is not set}"
-          : "${KEY_PASSWORD:?Repository secret KEY_PASSWORD is not set}"
-
           KEYSTORE_PATH="$RUNNER_TEMP/fkiab-ci.jks"
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+
+          if [ -n "${KEYSTORE_BASE64:-}" ] && [ -n "${KEYSTORE_PASSWORD:-}" ]; then
+            echo "Decoding repository signing keystore..."
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+            STORE_PASS="$KEYSTORE_PASSWORD"
+            ALIAS="${KEY_ALIAS:-fkiab}"
+            KEY_PASS="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+          else
+            echo "Signing secrets not configured. Generating temporary self-signed keystore for CI build..."
+            STORE_PASS="fkiab-ci-pass"
+            ALIAS="fkiab"
+            KEY_PASS="fkiab-ci-pass"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -alias "$ALIAS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass "$STORE_PASS" \
+              -keypass "$KEY_PASS" \
+              -dname "CN=fkiab-ci, OU=CI, O=FKIAB, L=CI, S=CI, C=US"
+          fi
 
           {
             echo "KEYSTORE_FILE=$KEYSTORE_PATH"
-            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
-            echo "KEY_ALIAS=$KEY_ALIAS"
-            echo "KEY_PASSWORD=$KEY_PASSWORD"
+            echo "KEYSTORE_PASSWORD=$STORE_PASS"
+            echo "KEY_ALIAS=$ALIAS"
+            echo "KEY_PASSWORD=$KEY_PASS"
           } >> "$GITHUB_ENV"
 
       - name: Grant execution permission
