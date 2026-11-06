@@ -9,34 +9,6 @@ Java.perform(function () {
 
     function logHook(cls, m) { console.log(`[*] Hooking ${cls}.${m}`); }
 
-    // Reading an enum constant before its class is initialised gives null, and the app
-    // maps that null straight into a crash. values() runs <clinit>, so use it instead of
-    // touching the static field.
-    function enumValue(className, constantName) {
-        var constants = Java.use(className).values();
-
-        for (var i = 0; i < constants.length; i++) {
-            if (constants[i].name().toString() === constantName) return constants[i];
-        }
-
-        return null;
-    }
-
-    // The same applies to Kotlin object singletons, which only exist after <clinit>.
-    function objectValue(className, field) {
-        var cls = Java.use(className);
-        var value = cls[field].value;
-
-        if (value === null || value === undefined) {
-            try {
-                Java.use('java.lang.Class').forName(className, true, cls.class.getClassLoader());
-            } catch (e) { }
-            value = cls[field].value;
-        }
-
-        return (value === undefined) ? null : value;
-    }
-
     function linkedHashMapOf(key, value) {
         var map = Java.use('java.util.LinkedHashMap').$new();
         map.put(key, value);
@@ -121,7 +93,8 @@ Java.perform(function () {
     // ============================================================
     var SkuPLATINUM = null;
     try {
-        SkuPLATINUM = enumValue('com.life360.android.core.models.Sku', 'PLATINUM');
+        var SkuClass = Java.use('com.life360.android.core.models.Sku');
+        SkuPLATINUM = SkuClass.PLATINUM.value;
         console.log("[+] Got Sku.PLATINUM");
     } catch (e) { console.log(`[-] Sku.PLATINUM: ${e}`); }
 
@@ -166,9 +139,8 @@ Java.perform(function () {
                 'com.life360.inapppurchase.Premium'
             ).implementation = function (prem) {
                 try {
-                    var sp = objectValue('com.life360.android.core.models.PremiumFeature$TileDevicePackage$StarterPack', 'INSTANCE');
-                    if (sp == null) return this.skuTileClassicFulfillments(prem);
-                    return linkedHashMapOf(SkuPLATINUM, sp);
+                    var SP = Java.use('com.life360.android.core.models.PremiumFeature$TileDevicePackage$StarterPack');
+                    return linkedHashMapOf(SkuPLATINUM, SP.INSTANCE.value);
                 } catch (e) { return this.skuTileClassicFulfillments(prem); }
             };
         } catch (e) { console.log(`[-] skuTileClassicFulfillments: ${e}`); }
@@ -179,9 +151,8 @@ Java.perform(function () {
             ).implementation = function (prem) {
                 try {
                     var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var usd = enumValue('com.life360.android.core.models.PremiumFeature$MembershipCurrency', 'USD');
-                    if (usd == null) return this.resolveIdTheftReimbursementPerSkus(prem);
-                    return linkedHashMapOf(SkuPLATINUM, RV.$new(50000, usd));
+                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
+                    return linkedHashMapOf(SkuPLATINUM, RV.$new(50000, Cur.USD.value));
                 } catch (e) { return this.resolveIdTheftReimbursementPerSkus(prem); }
             };
         } catch (e) { console.log(`[-] resolveIdTheftReimbursementPerSkus: ${e}`); }
@@ -192,9 +163,8 @@ Java.perform(function () {
             ).implementation = function (prem) {
                 try {
                     var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var usd = enumValue('com.life360.android.core.models.PremiumFeature$MembershipCurrency', 'USD');
-                    if (usd == null) return this.resolveStolenPhoneReimbursementPerSkus(prem);
-                    return linkedHashMapOf(SkuPLATINUM, RV.$new(50000, usd));
+                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
+                    return linkedHashMapOf(SkuPLATINUM, RV.$new(50000, Cur.USD.value));
                 } catch (e) { return this.resolveStolenPhoneReimbursementPerSkus(prem); }
             };
         } catch (e) { console.log(`[-] resolveStolenPhoneReimbursementPerSkus: ${e}`); }
@@ -204,9 +174,8 @@ Java.perform(function () {
                 'com.life360.inapppurchase.Premium'
             ).implementation = function (prem) {
                 try {
-                    var ud = objectValue('com.life360.android.core.models.RoadsideAssistanceValue$UnlimitedDistance', 'INSTANCE');
-                    if (ud == null) return this.resolveRoadsideAssistancePerSkus(prem);
-                    return linkedHashMapOf(SkuPLATINUM, ud);
+                    var UD = Java.use('com.life360.android.core.models.RoadsideAssistanceValue$UnlimitedDistance');
+                    return linkedHashMapOf(SkuPLATINUM, UD.INSTANCE.value);
                 } catch (e) { return this.resolveRoadsideAssistancePerSkus(prem); }
             };
         } catch (e) { console.log(`[-] resolveRoadsideAssistancePerSkus: ${e}`); }
@@ -222,9 +191,8 @@ Java.perform(function () {
             ).implementation = function (cid, prem) {
                 try {
                     var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var usd = enumValue('com.life360.android.core.models.PremiumFeature$MembershipCurrency', 'USD');
-                    if (usd == null) return this.resolveIdTheftReimbursementForCircle(cid, prem);
-                    return RV.$new(50000, usd);
+                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
+                    return RV.$new(50000, Cur.USD.value);
                 } catch (e) { return this.resolveIdTheftReimbursementForCircle(cid, prem); }
             };
         } catch (e) { console.log(`[-] resolveIdTheftReimbursementForCircle: ${e}`); }
@@ -235,9 +203,8 @@ Java.perform(function () {
             ).implementation = function (cid, prem) {
                 try {
                     var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var usd = enumValue('com.life360.android.core.models.PremiumFeature$MembershipCurrency', 'USD');
-                    if (usd == null) return this.resolveStolenPhoneReimbursementForCircle(cid, prem);
-                    return RV.$new(50000, usd);
+                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
+                    return RV.$new(50000, Cur.USD.value);
                 } catch (e) { return this.resolveStolenPhoneReimbursementForCircle(cid, prem); }
             };
         } catch (e) { console.log(`[-] resolveStolenPhoneReimbursementForCircle: ${e}`); }
@@ -247,9 +214,8 @@ Java.perform(function () {
                 'java.lang.String', 'com.life360.inapppurchase.Premium'
             ).implementation = function (cid, prem) {
                 try {
-                    var ud = objectValue('com.life360.android.core.models.RoadsideAssistanceValue$UnlimitedDistance', 'INSTANCE');
-                    if (ud == null) return this.resolveRoadsideAssistanceForCircle(cid, prem);
-                    return ud;
+                    var UD = Java.use('com.life360.android.core.models.RoadsideAssistanceValue$UnlimitedDistance');
+                    return UD.INSTANCE.value;
                 } catch (e) { return this.resolveRoadsideAssistanceForCircle(cid, prem); }
             };
         } catch (e) { console.log(`[-] resolveRoadsideAssistanceForCircle: ${e}`); }
@@ -270,9 +236,8 @@ Java.perform(function () {
                 'java.lang.String', 'com.life360.inapppurchase.Premium'
             ).implementation = function (cid, prem) {
                 try {
-                    var sp = objectValue('com.life360.android.core.models.PremiumFeature$TileDevicePackage$StarterPack', 'INSTANCE');
-                    if (sp == null) return this.resolveTileDevicePackageForCircle(cid, prem);
-                    return sp;
+                    var SP = Java.use('com.life360.android.core.models.PremiumFeature$TileDevicePackage$StarterPack');
+                    return SP.INSTANCE.value;
                 } catch (e) { return this.resolveTileDevicePackageForCircle(cid, prem); }
             };
         } catch (e) { console.log(`[-] resolveTileDevicePackageForCircle: ${e}`); }
@@ -295,9 +260,7 @@ Java.perform(function () {
         try {
             utilClass['getActiveMappedSkuOrFree$lambda$0'].overload('java.util.Optional').implementation = function (opt) {
                 try {
-                    var v = enumValue('com.life360.android.core.models.Sku', 'PLATINUM');
-                    if (v == null) return this['getActiveMappedSkuOrFree$lambda$0'](opt);
-                    return v;
+                    return Java.use('com.life360.android.core.models.Sku').PLATINUM.value;
                 } catch (e) {
                     return this['getActiveMappedSkuOrFree$lambda$0'](opt);
                 }
@@ -378,20 +341,16 @@ Java.perform(function () {
         PSI.getProductId.implementation = function () { return "premium_4999_yearly_1"; };
         PSI.getPeriod.implementation = function () {
             try {
-                var v = enumValue('com.life360.model_store.base.localstore.room.premium.PurchasePeriod', 'ANNUAL');
-                if (v == null) return this.getPeriod();
-                return v;
+                return Java.use('com.life360.model_store.base.localstore.room.premium.PurchasePeriod').ANNUAL.value;
             } catch (e) {
-                return this.getPeriod();
+                return Java.use('com.life360.model_store.base.localstore.room.premium.PurchasePeriod').ANNUAL;
             }
         };
         PSI.getPaymentState.implementation = function () {
             try {
-                var v = enumValue('com.life360.inapppurchase.PaymentState', 'PAID');
-                if (v == null) return this.getPaymentState();
-                return v;
+                return Java.use('com.life360.inapppurchase.PaymentState').PAID.value;
             } catch (e) {
-                return this.getPaymentState();
+                return Java.use('com.life360.inapppurchase.PaymentState').PAID;
             }
         };
         console.log("[+] Hooked PurchasedSkuInfo getters");
@@ -410,13 +369,11 @@ Java.perform(function () {
         } catch (e) { console.log(`[-] Premium.skuForCircle: ${e}`); }
 
         try {
-            Premium.paymentStateForCircle.overload('java.lang.String').implementation = function (cid) {
+            Premium.paymentStateForCircle.overload('java.lang.String').implementation = function () {
                 try {
-                    var v = enumValue('com.life360.inapppurchase.PaymentState', 'PAID');
-                    if (v == null) return this.paymentStateForCircle(cid);
-                    return v;
+                    return Java.use('com.life360.inapppurchase.PaymentState').PAID.value;
                 } catch (e) {
-                    return this.paymentStateForCircle(cid);
+                    return Java.use('com.life360.inapppurchase.PaymentState').PAID;
                 }
             };
         } catch (e) { console.log(`[-] Premium.paymentStateForCircle: ${e}`); }
@@ -424,11 +381,9 @@ Java.perform(function () {
         try {
             Premium.membershipTierExperience.implementation = function () {
                 try {
-                    var v = enumValue('com.life360.inapppurchase.MembershipTierExperience', 'TRIPLE_TIER');
-                    if (v == null) return this.membershipTierExperience();
-                    return v;
+                    return Java.use('com.life360.inapppurchase.MembershipTierExperience').TRIPLE_TIER.value;
                 } catch (e) {
-                    return this.membershipTierExperience();
+                    return Java.use('com.life360.inapppurchase.MembershipTierExperience').TRIPLE_TIER;
                 }
             };
         } catch (e) { console.log(`[-] membershipTierExperience: ${e}`); }
