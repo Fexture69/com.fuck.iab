@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.view.isVisible
@@ -31,8 +32,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
-import java.text.DateFormat
-import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,6 +65,12 @@ class scripts : Fragment() {
 
         adapter = ScriptAdapter(requireContext()) { script -> showDetails(script) }
         adapter.onEnabledChanged = { packageName, enabled -> viewModel.setEnabled(packageName, enabled) }
+        adapter.onMenu = { anchor, script ->
+            showAppMenu(
+                requireContext(), anchor, script.packageName, script.installed,
+                viewLifecycleOwner.lifecycleScope
+            )
+        }
 
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = adapter
@@ -80,7 +85,7 @@ class scripts : Fragment() {
         v.findViewById<ChipGroup>(R.id.filterGroup)
             .setOnCheckedStateChangeListener { _, checkedIds ->
                 filter = when (checkedIds.firstOrNull()) {
-                    R.id.filterStore -> ScriptSource.REMOTE
+                    R.id.filterSynced -> ScriptSource.REMOTE
                     R.id.filterUser -> ScriptSource.USER
                     else -> null
                 }
@@ -93,6 +98,7 @@ class scripts : Fragment() {
                 viewModel.state.collect { state ->
                     all = state.scripts
                     applyFilters(empty)
+                    viewModel.syncIfEmpty(state.scripts.size)
                 }
             }
         }
@@ -121,6 +127,7 @@ class scripts : Fragment() {
             val matchesFilter = filter == null || script.source == filter
             val matchesQuery = needle.isEmpty() ||
                     script.packageName.contains(needle, true) ||
+                    script.name?.contains(needle, true) == true ||
                     ScriptStore.appLabel(requireContext(), script.packageName).contains(needle, true)
 
             matchesFilter && matchesQuery
@@ -144,7 +151,9 @@ class scripts : Fragment() {
         view.findViewById<ImageView>(R.id.detailIcon).setImageDrawable(
             ScriptStore.appIcon(context, script.packageName) ?: context.getDrawable(R.drawable.ic_description)
         )
-        view.findViewById<TextView>(R.id.detailLabel).text = ScriptStore.appLabel(context, script.packageName)
+        view.findViewById<TextView>(R.id.detailLabel).text =
+            if (script.installed) ScriptStore.appLabel(context, script.packageName)
+            else script.name ?: script.packageName
         view.findViewById<TextView>(R.id.detailPackage).text = script.packageName
 
         val sheetDialog = BottomSheetDialog(context)
@@ -171,7 +180,6 @@ class scripts : Fragment() {
 
     private fun bindDetails(view: View, details: ScriptDetails) {
         val context = requireContext()
-        val dateFormat = DateFormat.getDateTimeInstance()
 
         // Source, size and author, once each, on one line.
         val summary = buildList {
@@ -182,7 +190,9 @@ class scripts : Fragment() {
         }
         view.findViewById<TextView>(R.id.detailSummary).text = summary.joinToString(" · ")
 
-        val covers = coverageLabel(context, details.packageName, details.coveredApps, details.inScope)
+        val covers = coverageLabel(
+            context, details.packageName, details.coveredApps, details.inScope, details.installed
+        )
         view.findViewById<TextView>(R.id.detailCovers).text = covers ?: ""
         view.findViewById<View>(R.id.detailCoversRow).isVisible = covers != null
 
@@ -192,24 +202,7 @@ class scripts : Fragment() {
         view.findViewById<TextView>(R.id.detailFile).text = details.file ?: "-"
         view.findViewById<View>(R.id.detailFileRow).isVisible = details.file != null
 
-        view.findViewById<TextView>(R.id.detailPublished).text = details.publishedAt?.let {
-            dateFormat.format(Date(it))
-        } ?: "-"
-        view.findViewById<View>(R.id.detailPublishedRow).isVisible = details.publishedAt != null
-
-        view.findViewById<TextView>(R.id.detailSynced).text = details.syncedAt?.let {
-            dateFormat.format(Date(it))
-        } ?: "-"
-        view.findViewById<View>(R.id.detailSyncedRow).isVisible = details.syncedAt != null
-
-        // One checksum, with the verdict for remote copies only.
         view.findViewById<TextView>(R.id.detailChecksum).text = details.sha256 ?: "-"
-
-        val checksumNote = view.findViewById<TextView>(R.id.detailChecksumNote)
-        checksumNote.isVisible = details.matchesManifest != null
-        checksumNote.setText(
-            if (details.matchesManifest == true) R.string.detail_matches else R.string.detail_differs
-        )
     }
 
     // ---- new script picker -----------------------------------------------------
@@ -320,6 +313,7 @@ private class ScriptAdapter(
 ) : ListAdapter<ScriptInfo, ScriptAdapter.Holder>(DIFF) {
 
     var onEnabledChanged: ((String, Boolean) -> Unit)? = null
+    var onMenu: ((View, ScriptInfo) -> Unit)? = null
 
     class Holder(view: View) : RecyclerView.ViewHolder(view) {
         val icon: ImageView = view.findViewById(R.id.scriptIcon)
@@ -327,6 +321,7 @@ private class ScriptAdapter(
         val packageName: TextView = view.findViewById(R.id.scriptPackage)
         val meta: TextView = view.findViewById(R.id.scriptMeta)
         val covers: TextView = view.findViewById(R.id.scriptCovers)
+        val menu: ImageButton = view.findViewById(R.id.scriptMenu)
         val switch: MaterialSwitch = view.findViewById(R.id.scriptSwitch)
     }
 
@@ -342,13 +337,20 @@ private class ScriptAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val item = getItem(position)
 
-        holder.label.text = if (item.packageName == ScriptStore.ALL_APPS) {
-            context.getString(R.string.scripts_all_apps)
-        } else {
-            ScriptStore.appLabel(context, item.packageName)
+        holder.menu.setOnClickListener { onMenu?.invoke(holder.menu, item) }
+
+        val isAllApps = item.packageName == ScriptStore.ALL_APPS
+
+        holder.label.text = when {
+            isAllApps -> context.getString(R.string.scripts_all_apps)
+            item.installed -> ScriptStore.appLabel(context, item.packageName)
+            // The store knows what the app is called even where it is not installed.
+            else -> item.name ?: item.packageName
         }
 
+        // The package name would only repeat the label for an app that is not installed.
         holder.packageName.text = item.packageName
+        holder.packageName.isVisible = isAllApps || item.installed
 
         val parts = mutableListOf(sourceLabel(context, item.source))
 
@@ -356,7 +358,9 @@ private class ScriptAdapter(
         item.author?.let { parts += it }
 
         holder.meta.text = parts.joinToString(" · ")
-        val covers = coverageLabel(context, item.packageName, item.coveredApps, item.inScope)
+        val covers = coverageLabel(
+            context, item.packageName, item.coveredApps, item.inScope, item.installed
+        )
         holder.covers.text = covers ?: ""
         holder.covers.isVisible = covers != null
         holder.icon.setImageDrawable(

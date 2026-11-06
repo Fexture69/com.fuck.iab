@@ -16,6 +16,8 @@ enum class ScriptSource { USER, REMOTE }
 
 data class ScriptInfo(
     val packageName: String,
+    /** App name from the store, used when the app is not installed to read its own. */
+    val name: String?,
     val source: ScriptSource,
     val author: String?,
     val size: Int,
@@ -24,24 +26,25 @@ data class ScriptInfo(
     /** Apps this script runs in: every app in scope for the all-apps script, one for a package. */
     val coveredApps: Int,
     /** Whether the module hooks this package at all, which is what makes the script run. */
-    val inScope: Boolean
+    val inScope: Boolean,
+    /** Whether the app is still on the device, so its name and icon are available. */
+    val installed: Boolean
 )
 
 /** Everything the detail sheet can say about one script. */
 data class ScriptDetails(
     val packageName: String,
+    val name: String?,
     val source: ScriptSource,
     val size: Int,
     val author: String?,
     val sha256: String?,
     val file: String?,
-    val matchesManifest: Boolean?,
-    val publishedAt: Long?,
-    val syncedAt: Long?,
     val hasUserScript: Boolean,
     val enabled: Boolean,
     val coveredApps: Int,
-    val inScope: Boolean
+    val inScope: Boolean,
+    val installed: Boolean
 )
 
 /** How the module code inside a running process relates to the installed module. */
@@ -153,20 +156,27 @@ object ScriptStore {
 
     // ---- inventory -------------------------------------------------------------
 
-    fun inventory(context: Context, service: XposedService?, scope: Set<String> = emptySet()): List<ScriptInfo> {
+    fun inventory(
+        context: Context,
+        service: XposedService?,
+        scope: Set<String> = emptySet(),
+        scopeConfirmed: Boolean = true
+    ): List<ScriptInfo> {
         val files = if (service != null) RemoteFiles.list(service) else emptySet()
-        val remote = if (service != null) remoteEntries(service) else emptyList()
-        val remoteByPackage = remote.associateBy { it.packageName }
+        val synced = if (service != null) syncedEntries(service) else emptyMap()
         val disabled = if (service != null) disabledApps(service) else emptySet()
         val users = userEntries(context, files)
 
+        // The all-apps script runs everywhere and is not an app of its own, so the list of
+        // per-app scripts leaves it out.
         val names = sortedSetOf<String>()
-        names += users.keys
-        names += remoteByPackage.keys
+        names += users.keys.filter { it != ALL_APPS }
+        names += synced.keys.filter { it != ALL_APPS }
 
         return names.map { packageName ->
             val user = users[packageName]
-            val synced = remoteByPackage[packageName]
+            val syncedEntry = synced[packageName]
+            val installed = isInstalled(context, packageName)
 
             val source: ScriptSource
             val size: Int
@@ -179,28 +189,48 @@ object ScriptStore {
                 author = text?.let { authorOf(it) }
             } else {
                 source = ScriptSource.REMOTE
-                size = synced?.size?.toInt() ?: 0
-                author = synced?.author
+                size = syncedEntry?.size?.toInt() ?: 0
+                author = syncedEntry?.author
             }
 
-            val inScope = packageName == ALL_APPS || scope.contains(packageName)
+            // While the framework has not reported the scope, claiming an app is out of it
+            // would be wrong, so nothing is flagged until the answer is known.
+            val inScope = packageName == ALL_APPS || !scopeConfirmed || scope.contains(packageName)
 
             ScriptInfo(
                 packageName = packageName,
+                name = syncedEntry?.name,
                 source = source,
                 author = author,
                 size = size,
                 enabled = !disabled.contains(packageName),
                 hasUserScript = user != null,
                 coveredApps = if (packageName == ALL_APPS) scope.size else if (inScope) 1 else 0,
-                inScope = inScope
+                inScope = inScope,
+                installed = installed
             )
-        }
+        }.sortedWith(
+            // Apps that are still around come first, since those are the ones a script can act on.
+            compareByDescending<ScriptInfo> { it.installed }
+                .thenBy { appLabel(context, it.packageName).lowercase(Locale.US) }
+        )
     }
 
-    private fun remoteEntries(service: XposedService): List<RemoteScripts.Entry> {
-        return RemoteScripts.parseIndex(RemoteFiles.read(service, RemoteScripts.INDEX_FILE))?.entries
-            ?: emptyList()
+    /** The scripts the store lists, keyed by package, as of the last sync. */
+    private fun syncedEntries(service: XposedService): Map<String, RemoteScripts.Entry> {
+        return RemoteScripts.parseIndex(RemoteFiles.read(service, RemoteScripts.INDEX_FILE))
+            ?.associateBy { it.packageName } ?: emptyMap()
+    }
+
+    /** Whether [packageName] is installed, so the list can say when it is not. */
+    fun isInstalled(context: Context, packageName: String): Boolean {
+        if (packageName == ALL_APPS) return true
+        return try {
+            context.packageManager.getApplicationInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun authorOf(script: String): String? {
@@ -214,14 +244,13 @@ object ScriptStore {
     /** Reads the script that would run for [packageName] and describes where it came from. */
     fun details(context: Context, service: XposedService?, packageName: String): ScriptDetails {
         val files = if (service != null) RemoteFiles.list(service) else emptySet()
-        val index = if (service != null) {
+        val scoped = if (service != null) scope(service) else emptyList()
+        val entry = if (service != null) {
             RemoteScripts.parseIndex(RemoteFiles.read(service, RemoteScripts.INDEX_FILE))
+                ?.firstOrNull { it.packageName == packageName }
         } else {
             null
         }
-
-        val entry = index?.entries?.firstOrNull { it.packageName == packageName }
-        val scoped = if (service != null) scope(service) else emptyList()
 
         val userFile = userFile(packageName)
         val syncedFile = RemoteScripts.fileName(packageName)
@@ -244,6 +273,7 @@ object ScriptStore {
             }
 
             else -> {
+                // A script the store lists but the device never received.
                 source = ScriptSource.REMOTE
                 text = null
             }
@@ -253,22 +283,17 @@ object ScriptStore {
 
         return ScriptDetails(
             packageName = packageName,
+            name = entry?.name,
             source = source,
             size = text?.toByteArray(Charsets.UTF_8)?.size ?: 0,
             author = text?.let { authorOf(it) },
             sha256 = checksum,
             file = file,
-            matchesManifest = if (source == ScriptSource.REMOTE && entry != null && checksum != null) {
-                checksum == entry.sha256
-            } else {
-                null
-            },
-            publishedAt = index?.publishedAt?.takeIf { it > 0 },
-            syncedAt = if (source == ScriptSource.REMOTE) index?.fetchedAt?.takeIf { it > 0 } else null,
             hasUserScript = files.contains(userFile),
             enabled = service == null || packageName !in disabledApps(service),
             coveredApps = if (packageName == ALL_APPS) scoped.size else 1,
-            inScope = packageName == ALL_APPS || scoped.contains(packageName)
+            inScope = packageName == ALL_APPS || scoped.contains(packageName),
+            installed = isInstalled(context, packageName)
         )
     }
 
@@ -281,16 +306,14 @@ object ScriptStore {
     // ---- content ---------------------------------------------------------------
 
     /** The script the module would run for [packageName]: the user copy, else the remote one. */
-    fun readScript(context: Context, service: XposedService?, packageName: String): Pair<ScriptSource, String>? {
+    fun readScript(service: XposedService?, packageName: String): Pair<ScriptSource, String>? {
         if (service == null) return null
 
-        val user = readUserScript(context, service, packageName)
+        val user = readUserScript(service, packageName)
         if (!user.isNullOrBlank()) return ScriptSource.USER to user
 
-        if (RemoteFiles.list(service).contains(RemoteScripts.fileName(packageName))) {
-            val synced = RemoteFiles.read(service, RemoteScripts.fileName(packageName))
-            if (!synced.isNullOrBlank()) return ScriptSource.REMOTE to synced
-        }
+        val synced = RemoteFiles.read(service, RemoteScripts.fileName(packageName))
+        if (!synced.isNullOrBlank()) return ScriptSource.REMOTE to synced
 
         return null
     }
@@ -305,7 +328,7 @@ object ScriptStore {
     /** File the module reads as the all-apps user script. */
     fun userScriptName(): String = user_script_js()
 
-    fun readUserScript(context: Context, service: XposedService, packageName: String): String? {
+    private fun readUserScript(service: XposedService, packageName: String): String? {
         val file = userFile(packageName)
         if (!RemoteFiles.list(service).contains(file)) return null
         return RemoteFiles.read(service, file)
@@ -484,16 +507,6 @@ object ScriptStore {
                 .distinct()
         } catch (e: Exception) {
             emptyList()
-        }
-    }
-
-    fun isInstalled(context: Context, packageName: String): Boolean {
-        if (packageName == ALL_APPS) return true
-        return try {
-            context.packageManager.getApplicationInfo(packageName, 0)
-            true
-        } catch (e: Exception) {
-            false
         }
     }
 

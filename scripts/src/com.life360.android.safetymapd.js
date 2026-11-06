@@ -1,401 +1,92 @@
 // author: Fexture69
-/*
- * Life360 Platinum Unlock – Frida Script (Final, Clean, Crash-Safe)
- * Target package: com.life360.android.safetymapd
- */
+// The hooks go in a few seconds after the process starts. At Application.onCreate Life360 is
+// still loading its dex files, and touching its classes at that point crashed ART inside
+// Frida (access violation) and left the app stuck before it drew its first screen.
+setTimeout(function () {
+    Java.perform(function () {
+        console.log("[*] Installing the Life360 hooks");
 
-Java.perform(function () {
-    console.log("[*] Starting Life360 Platinum unlock script...");
-
-    function logHook(cls, m) { console.log(`[*] Hooking ${cls}.${m}`); }
-
-    function linkedHashMapOf(key, value) {
-        var map = Java.use('java.util.LinkedHashMap').$new();
-        map.put(key, value);
-        return map;
-    }
-
-    // ============================================================
-    // 1. CircleFeatures.isPremium
-    // ============================================================
-    try {
-        var CircleFeatures = Java.use('com.life360.model_store.base.localstore.CircleFeatures');
-        CircleFeatures.isPremium.implementation = function () { return true; };
-        console.log("[+] Hooked CircleFeatures.isPremium");
-    } catch (e) { console.log(`[-] CircleFeatures.isPremium: ${e}`); }
-
-    // ============================================================
-    // 2. FeatureSetEntitlementManager – booleans
-    // ============================================================
-    var FSE = null;
-    try {
-        FSE = Java.use('com.life360.inapppurchase.FeatureSetEntitlementManager');
-        console.log("[+] Found FeatureSetEntitlementManager");
-    } catch (e) { console.log(`[-] FeatureSetEntitlementManager: ${e}`); }
-
-    if (FSE) {
+        var Premium = null;
         try {
-            FSE.isAvailable.overload(
-                'com.life360.android.core.models.FeatureKey',
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () { logHook('FSE', 'isAvailable'); return true; };
-        } catch (e) { console.log(`[-] isAvailable: ${e}`); }
+            Premium = Java.use('com.life360.inapppurchase.Premium');
+            console.log("[+] Found Premium");
+        } catch (e) { console.log(`[-] Premium: ${e}`); }
 
-        try {
-            FSE.isEnabledForAnyCircle.overload(
-                'com.life360.android.core.models.FeatureKey',
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () { logHook('FSE', 'isEnabledForAnyCircle'); return true; };
-        } catch (e) { console.log(`[-] isEnabledForAnyCircle: ${e}`); }
+        // values() forces <clinit>, so an enum is never read before it is initialised.
+        function enumValue(className, constantName) {
+            var values = Java.use(className).values();
 
-        try {
-            FSE.isEnabledForCircle.overload(
-                'com.life360.android.core.models.FeatureKey',
-                'java.lang.String',
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () { logHook('FSE', 'isEnabledForCircle'); return true; };
-        } catch (e) { console.log(`[-] isEnabledForCircle: ${e}`); }
+            for (var i = 0; i < values.length; i++) {
+                if (values[i].name().toString() === constantName) return values[i];
+            }
 
-        try {
-            FSE.isOnVictimOnlyCollisionDispatchAvailable.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () { return true; };
-        } catch (e) { console.log(`[-] isOnVictimOnlyCollisionDispatchAvailable: ${e}`); }
-
-        try {
-            FSE.isOnVictimOnlyPremiumSosAvailable.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () { return true; };
-        } catch (e) { console.log(`[-] isOnVictimOnlyPremiumSosAvailable: ${e}`); }
-
-        // Integer returns
-        try {
-            FSE.resolveGpsTrackerForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function () { return 0x63; };
-        } catch (e) { console.log(`[-] resolveGpsTrackerForCircle: ${e}`); }
-
-        try {
-            FSE.resolveLocationHistoryForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function () { return 0x7fffffff; };
-        } catch (e) { console.log(`[-] resolveLocationHistoryForCircle: ${e}`); }
-
-        try {
-            FSE.resolvePlaceAlertsForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function () { return 0x7fffffff; };
-        } catch (e) { console.log(`[-] resolvePlaceAlertsForCircle: ${e}`); }
-    }
-
-    // ============================================================
-    // 3. Sku.PLATINUM
-    // ============================================================
-    var SkuPLATINUM = null;
-    try {
-        var SkuClass = Java.use('com.life360.android.core.models.Sku');
-        SkuPLATINUM = SkuClass.PLATINUM.value;
-        console.log("[+] Got Sku.PLATINUM");
-    } catch (e) { console.log(`[-] Sku.PLATINUM: ${e}`); }
-
-    // ============================================================
-    // 4. Map returns (with fallback)
-    // ============================================================
-    if (FSE && SkuPLATINUM) {
-        try {
-            FSE.resolveLocationHistoryPerSkus.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function (prem) {
-                try {
-                    return linkedHashMapOf(SkuPLATINUM, Java.use('java.lang.Integer').$new(0x7fffffff));
-                } catch (e) { return this.resolveLocationHistoryPerSkus(prem); }
-            };
-        } catch (e) { console.log(`[-] resolveLocationHistoryPerSkus: ${e}`); }
-
-        try {
-            FSE.isAvailableForPerSkus.overload(
-                'com.life360.android.core.models.FeatureKey',
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function (fk, prem) {
-                try {
-                    return linkedHashMapOf(SkuPLATINUM, Java.use('java.lang.Boolean').$new(true));
-                } catch (e) { return this.isAvailableForPerSkus(fk, prem); }
-            };
-        } catch (e) { console.log(`[-] isAvailableForPerSkus: ${e}`); }
-
-        try {
-            FSE.resolvePlaceAlertsPerSkus.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function (prem) {
-                try {
-                    var LA = Java.use('com.life360.android.core.models.AvailablePlaceAlerts$LimitedAlerts');
-                    return linkedHashMapOf(SkuPLATINUM, LA.$new(0x7fffffff));
-                } catch (e) { return this.resolvePlaceAlertsPerSkus(prem); }
-            };
-        } catch (e) { console.log(`[-] resolvePlaceAlertsPerSkus: ${e}`); }
-
-        try {
-            FSE.skuTileClassicFulfillments.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function (prem) {
-                try {
-                    var SP = Java.use('com.life360.android.core.models.PremiumFeature$TileDevicePackage$StarterPack');
-                    return linkedHashMapOf(SkuPLATINUM, SP.INSTANCE.value);
-                } catch (e) { return this.skuTileClassicFulfillments(prem); }
-            };
-        } catch (e) { console.log(`[-] skuTileClassicFulfillments: ${e}`); }
-
-        try {
-            FSE.resolveIdTheftReimbursementPerSkus.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function (prem) {
-                try {
-                    var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
-                    return linkedHashMapOf(SkuPLATINUM, RV.$new(50000, Cur.USD.value));
-                } catch (e) { return this.resolveIdTheftReimbursementPerSkus(prem); }
-            };
-        } catch (e) { console.log(`[-] resolveIdTheftReimbursementPerSkus: ${e}`); }
-
-        try {
-            FSE.resolveStolenPhoneReimbursementPerSkus.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function (prem) {
-                try {
-                    var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
-                    return linkedHashMapOf(SkuPLATINUM, RV.$new(50000, Cur.USD.value));
-                } catch (e) { return this.resolveStolenPhoneReimbursementPerSkus(prem); }
-            };
-        } catch (e) { console.log(`[-] resolveStolenPhoneReimbursementPerSkus: ${e}`); }
-
-        try {
-            FSE.resolveRoadsideAssistancePerSkus.overload(
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function (prem) {
-                try {
-                    var UD = Java.use('com.life360.android.core.models.RoadsideAssistanceValue$UnlimitedDistance');
-                    return linkedHashMapOf(SkuPLATINUM, UD.INSTANCE.value);
-                } catch (e) { return this.resolveRoadsideAssistancePerSkus(prem); }
-            };
-        } catch (e) { console.log(`[-] resolveRoadsideAssistancePerSkus: ${e}`); }
-    }
-
-    // ============================================================
-    // 5. FeatureSetEntitlementManager – object returns
-    // ============================================================
-    if (FSE) {
-        try {
-            FSE.resolveIdTheftReimbursementForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function (cid, prem) {
-                try {
-                    var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
-                    return RV.$new(50000, Cur.USD.value);
-                } catch (e) { return this.resolveIdTheftReimbursementForCircle(cid, prem); }
-            };
-        } catch (e) { console.log(`[-] resolveIdTheftReimbursementForCircle: ${e}`); }
-
-        try {
-            FSE.resolveStolenPhoneReimbursementForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function (cid, prem) {
-                try {
-                    var RV = Java.use('com.life360.android.core.models.ReimbursementValue');
-                    var Cur = Java.use('com.life360.android.core.models.PremiumFeature$MembershipCurrency');
-                    return RV.$new(50000, Cur.USD.value);
-                } catch (e) { return this.resolveStolenPhoneReimbursementForCircle(cid, prem); }
-            };
-        } catch (e) { console.log(`[-] resolveStolenPhoneReimbursementForCircle: ${e}`); }
-
-        try {
-            FSE.resolveRoadsideAssistanceForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function (cid, prem) {
-                try {
-                    var UD = Java.use('com.life360.android.core.models.RoadsideAssistanceValue$UnlimitedDistance');
-                    return UD.INSTANCE.value;
-                } catch (e) { return this.resolveRoadsideAssistanceForCircle(cid, prem); }
-            };
-        } catch (e) { console.log(`[-] resolveRoadsideAssistanceForCircle: ${e}`); }
-
-        try {
-            FSE.resolveSosEmergencyDispatchForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function (cid, prem) {
-                try {
-                    var ED = Java.use('com.life360.android.core.models.PremiumFeature$SOS$EmergencyDispatch');
-                    return ED.$new(false);
-                } catch (e) { return this.resolveSosEmergencyDispatchForCircle(cid, prem); }
-            };
-        } catch (e) { console.log(`[-] resolveSosEmergencyDispatchForCircle: ${e}`); }
-
-        try {
-            FSE.resolveTileDevicePackageForCircle.overload(
-                'java.lang.String', 'com.life360.inapppurchase.Premium'
-            ).implementation = function (cid, prem) {
-                try {
-                    var SP = Java.use('com.life360.android.core.models.PremiumFeature$TileDevicePackage$StarterPack');
-                    return SP.INSTANCE.value;
-                } catch (e) { return this.resolveTileDevicePackageForCircle(cid, prem); }
-            };
-        } catch (e) { console.log(`[-] resolveTileDevicePackageForCircle: ${e}`); }
-    }
-
-    // ============================================================
-    // 6. DefaultMembershipUtil / PremiumCircleUtilImpl lambdas
-    // ============================================================
-    var DMU = null;
-    try { DMU = Java.use('com.life360.inapppurchase.DefaultMembershipUtil'); console.log("[+] Found DefaultMembershipUtil"); }
-    catch (e) { console.log(`[-] DefaultMembershipUtil: ${e}`); }
-
-    var PCU = null;
-    try { PCU = Java.use('com.life360.inapppurchase.PremiumCircleUtilImpl'); console.log("[+] Found PremiumCircleUtilImpl"); }
-    catch (e) { console.log(`[-] PremiumCircleUtilImpl: ${e}`); }
-
-    // getActiveMappedSkuOrFree$lambda$0 returns Sku (object), NOT .value
-    function hookGetActiveMapped(utilClass, name) {
-        if (!utilClass) return;
-        try {
-            utilClass['getActiveMappedSkuOrFree$lambda$0'].overload('java.util.Optional').implementation = function (opt) {
-                try {
-                    return Java.use('com.life360.android.core.models.Sku').PLATINUM.value;
-                } catch (e) {
-                    return this['getActiveMappedSkuOrFree$lambda$0'](opt);
-                }
-            };
-        } catch (e) { console.log(`[-] ${name}.getActiveMappedSkuOrFree$lambda$0: ${e}`); }
-    }
-    hookGetActiveMapped(DMU, 'DefaultMembershipUtil');
-    hookGetActiveMapped(PCU, 'PremiumCircleUtilImpl');
-
-    if (DMU) {
-        try {
-            DMU['isActiveCircleFree$lambda$0'].overload('java.util.Optional').implementation = function (opt) {
-                try { return Java.use('java.lang.Boolean').$new(false); }
-                catch (e) { return this['isActiveCircleFree$lambda$0'](opt); }
-            };
-        } catch (e) { console.log(`[-] isActiveCircleFree$lambda$0: ${e}`); }
-
-        try {
-            DMU['resolveLocationHistoryForCircle$lambda$2'].overload(
-                'com.life360.inapppurchase.DefaultMembershipUtil',
-                'java.lang.String',
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () {
-                return Java.use('java.lang.Integer').$new(0x7fffffff);
-            };
-        } catch (e) { console.log(`[-] DMU.resolveLocationHistoryForCircle$lambda$2: ${e}`); }
-
-        try {
-            DMU['resolvePlaceAlertsForCircle$lambda$3'].overload(
-                'com.life360.inapppurchase.DefaultMembershipUtil',
-                'java.lang.String',
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () {
-                return Java.use('java.lang.Integer').$new(0x7fffffff);
-            };
-        } catch (e) { console.log(`[-] DMU.resolvePlaceAlertsForCircle$lambda$3: ${e}`); }
-
-        if (SkuPLATINUM) {
-            try {
-                DMU['resolveLocationHistoryPerSkus$lambda$2'].overload(
-                    'com.life360.inapppurchase.DefaultMembershipUtil',
-                    'com.life360.inapppurchase.Premium'
-                ).implementation = function () {
-                    return linkedHashMapOf(SkuPLATINUM, Java.use('java.lang.Integer').$new(0x7fffffff));
-                };
-            } catch (e) { console.log(`[-] DMU.resolveLocationHistoryPerSkus$lambda$2: ${e}`); }
-
-            try {
-                DMU['resolvePlaceAlertsPerSkus$lambda$2'].overload(
-                    'com.life360.inapppurchase.DefaultMembershipUtil',
-                    'com.life360.inapppurchase.Premium'
-                ).implementation = function () {
-                    var LA = Java.use('com.life360.android.core.models.AvailablePlaceAlerts$LimitedAlerts');
-                    return linkedHashMapOf(SkuPLATINUM, LA.$new(0x7fffffff));
-                };
-            } catch (e) { console.log(`[-] DMU.resolvePlaceAlertsPerSkus$lambda$2: ${e}`); }
+            return null;
         }
-    }
 
-    if (PCU) {
-        try {
-            PCU['resolvePlaceAlertsForCircle$lambda$2'].overload(
-                'com.life360.inapppurchase.PremiumCircleUtilImpl',
-                'java.lang.String',
-                'com.life360.inapppurchase.Premium'
-            ).implementation = function () {
-                return Java.use('java.lang.Integer').$new(0x7fffffff);
-            };
-        } catch (e) { console.log(`[-] PCU.resolvePlaceAlertsForCircle$lambda$2: ${e}`); }
-    }
-
-    // ============================================================
-    // 7. PurchasedSkuInfo getters
-    // ============================================================
-    try {
-        var PSI = Java.use('com.life360.inapppurchase.PurchasedSkuInfo');
-        PSI.getSku.implementation = function () { return "9"; };
-        PSI.getProductId.implementation = function () { return "premium_4999_yearly_1"; };
-        PSI.getPeriod.implementation = function () {
-            try {
-                return Java.use('com.life360.model_store.base.localstore.room.premium.PurchasePeriod').ANNUAL.value;
-            } catch (e) {
-                return Java.use('com.life360.model_store.base.localstore.room.premium.PurchasePeriod').ANNUAL;
-            }
-        };
-        PSI.getPaymentState.implementation = function () {
-            try {
-                return Java.use('com.life360.inapppurchase.PaymentState').PAID.value;
-            } catch (e) {
-                return Java.use('com.life360.inapppurchase.PaymentState').PAID;
-            }
-        };
-        console.log("[+] Hooked PurchasedSkuInfo getters");
-    } catch (e) { console.log(`[-] PurchasedSkuInfo getters: ${e}`); }
-
-    // ============================================================
-    // 8. Premium class (skuInfoForCircle intentionally skipped)
-    // ============================================================
-    var Premium = null;
-    try { Premium = Java.use('com.life360.inapppurchase.Premium'); console.log("[+] Found Premium"); }
-    catch (e) { console.log(`[-] Premium: ${e}`); }
-
-    if (Premium) {
-        try {
-            Premium.skuForCircle.overload('java.lang.String').implementation = function () { return "9"; };
-        } catch (e) { console.log(`[-] Premium.skuForCircle: ${e}`); }
-
-        try {
-            Premium.paymentStateForCircle.overload('java.lang.String').implementation = function () {
+        // Runs the override, and falls back to the real method if it throws, so a missing
+        // enum constant can never hand the app a null where it expects an object.
+        function guard(name, fake, original) {
+            return function () {
                 try {
-                    return Java.use('com.life360.inapppurchase.PaymentState').PAID.value;
+                    return fake.apply(this, arguments);
                 } catch (e) {
-                    return Java.use('com.life360.inapppurchase.PaymentState').PAID;
+                    console.log(`[-] ${name}: ${e}, using the real method`);
+                    return original.apply(this, arguments);
                 }
             };
-        } catch (e) { console.log(`[-] Premium.paymentStateForCircle: ${e}`); }
+        }
 
-        try {
-            Premium.membershipTierExperience.implementation = function () {
+        if (Premium) {
+            // Probe skuInfoForCircle: only fake paid state if the real call succeeds.
+            var skuInfoWorks = false;
+            try {
+                skuInfoWorks = Premium.skuInfoForCircle.overload('java.lang.String') !== undefined;
+            } catch (e) { skuInfoWorks = false; }
+            console.log("[*] skuInfoForCircle present: " + skuInfoWorks);
+
+            // Do NOT hook skuInfoForCircle. Leave it to the real implementation.
+            // Only override the flags that depend on the real skuInfo.
+            if (skuInfoWorks) {
                 try {
-                    return Java.use('com.life360.inapppurchase.MembershipTierExperience').TRIPLE_TIER.value;
-                } catch (e) {
-                    return Java.use('com.life360.inapppurchase.MembershipTierExperience').TRIPLE_TIER;
-                }
-            };
-        } catch (e) { console.log(`[-] membershipTierExperience: ${e}`); }
+                    Premium.skuForCircle.overload('java.lang.String').implementation =
+                        guard('Premium.skuForCircle', function () { return "9"; },
+                            function (cid) { return this.skuForCircle(cid); });
+                    console.log("[+] Hooked skuForCircle");
+                } catch (e) { console.log(`[-] skuForCircle: ${e}`); }
 
-        try {
-            Premium.trialForSku.overload('java.lang.String').implementation = function () {
-                return Java.use('java.lang.Integer').$new(7);
-            };
-        } catch (e) { console.log(`[-] trialForSku: ${e}`); }
+                try {
+                    Premium.paymentStateForCircle.overload('java.lang.String').implementation =
+                        guard('Premium.paymentStateForCircle', function () {
+                            var paid = enumValue('com.life360.inapppurchase.PaymentState', 'PAID');
+                            if (paid == null) throw new Error('PaymentState.PAID not found');
+                            return paid;
+                        }, function (cid) { return this.paymentStateForCircle(cid); });
+                    console.log("[+] Hooked paymentStateForCircle");
+                } catch (e) { console.log(`[-] paymentStateForCircle: ${e}`); }
+            } else {
+                console.log("[!] skuInfoForCircle unavailable - skipping paid-flag overrides to avoid contradiction.");
+            }
 
-        console.log("[*] Premium.skuInfoForCircle hook intentionally skipped (constructor signature varies).");
-    }
+            try {
+                Premium.membershipTierExperience.implementation =
+                    guard('Premium.membershipTierExperience', function () {
+                        var tier = enumValue('com.life360.inapppurchase.MembershipTierExperience', 'TRIPLE_TIER');
+                        if (tier == null) throw new Error('MembershipTierExperience.TRIPLE_TIER not found');
+                        return tier;
+                    }, function () { return this.membershipTierExperience(); });
+                console.log("[+] Hooked membershipTierExperience");
+            } catch (e) { console.log(`[-] membershipTierExperience: ${e}`); }
 
-    console.log("[*] Script finished loading. App should NOT crash.");
-});
+            try {
+                Premium.trialForSku.overload('java.lang.String').implementation =
+                    guard('Premium.trialForSku', function () { return Java.use('java.lang.Integer').$new(7); },
+                        function (sku) { return this.trialForSku(sku); });
+                console.log("[+] Hooked trialForSku");
+            } catch (e) { console.log(`[-] trialForSku: ${e}`); }
+        } else {
+            console.log("[-] Premium class not found, nothing hooked");
+        }
+
+        console.log("[*] Script finished loading.");
+    });
+}, 5000);

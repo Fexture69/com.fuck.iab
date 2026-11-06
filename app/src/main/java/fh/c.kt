@@ -12,12 +12,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.fuck.iab.R
+import com.fuck.iab.RemoteScripts
 import com.fuck.iab.ScriptStore
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -84,14 +83,6 @@ class c : AppCompatActivity(), g.ServiceStateListener {
 
         titleFor(PAGE_HOME)
         viewModel.setHomeVisible(true)
-
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.messages.collect { message ->
-                    Toast.makeText(this@c, message, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -100,15 +91,20 @@ class c : AppCompatActivity(), g.ServiceStateListener {
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        // Refreshing the installed scripts belongs to the scripts screen, the log actions to
-        // the logs one, so the toolbar only offers what the current page can do.
-        val onScripts = viewPager.currentItem == PAGE_SCRIPTS
+        // The log actions belong to the logs screen, so the toolbar only offers what the
+        // current page can do.
         val onLogs = viewPager.currentItem == PAGE_LOGS
         val onHome = viewPager.currentItem == PAGE_HOME
+        val onScripts = viewPager.currentItem == PAGE_SCRIPTS
 
-        menu.findItem(R.id.action_refresh)?.isVisible = onScripts
         menu.findItem(R.id.action_logs_retry)?.isVisible = onLogs
         menu.findItem(R.id.action_logs_clear)?.isVisible = onLogs
+
+        // Updating the store belongs to the scripts screen, and only one update runs at a time.
+        menu.findItem(R.id.action_sync_scripts)?.apply {
+            isVisible = onScripts
+            isEnabled = !syncing
+        }
 
         // The theme button belongs to the home page, and offers the mode the app is not in.
         menu.findItem(R.id.action_theme)?.apply {
@@ -123,17 +119,17 @@ class c : AppCompatActivity(), g.ServiceStateListener {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_refresh -> {
-                viewModel.sync(manual = true)
-                true
-            }
-
             R.id.action_theme -> {
                 val night = ScriptStore.isNight(this)
                 ScriptStore.setTheme(
                     this,
                     if (night) ScriptStore.THEME_LIGHT else ScriptStore.THEME_DARK
                 )
+                true
+            }
+
+            R.id.action_sync_scripts -> {
+                updateScripts()
                 true
             }
 
@@ -148,6 +144,43 @@ class c : AppCompatActivity(), g.ServiceStateListener {
             }
 
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private var syncing = false
+
+    /**
+     * Downloads the published scripts. The store is remote, so the outcome is a toast rather
+     * than a dialog, and the list reloads itself once the new copies are in place.
+     */
+    private fun updateScripts() {
+        if (syncing) return
+
+        if (!RemoteScripts.configured) {
+            Toast.makeText(this, R.string.toast_scripts_no_store, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        syncing = true
+        invalidateOptionsMenu()
+
+        lifecycleScope.launch {
+            val text = try {
+                val result = viewModel.syncRemoteScripts()
+
+                if (result.downloaded == 0) {
+                    getString(R.string.toast_scripts_current)
+                } else {
+                    getString(R.string.toast_scripts_updated, result.downloaded)
+                }
+            } catch (e: Exception) {
+                getString(R.string.toast_scripts_failed, e.message ?: e.javaClass.simpleName)
+            } finally {
+                syncing = false
+                invalidateOptionsMenu()
+            }
+
+            Toast.makeText(this@c, text, Toast.LENGTH_LONG).show()
         }
     }
 

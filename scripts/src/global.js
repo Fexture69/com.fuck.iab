@@ -4,6 +4,9 @@ import JavaBridge from "frida-java-bridge";
 
 export const Java = JavaBridge
 
+// Keep the JVMTI plugin out of the app process, as the stock app does. Loading it
+// late aborts ART on a non-debuggable runtime (seen on Life360), and the pinned
+// bridge resolves the ART internals without it.
 globalThis.FRIDA_JAVA_BRIDGE_DISABLE_JVMTI = true;
 
 try { APP_SCRIPT_GOES_HERE } catch(e) { console.log(e) }

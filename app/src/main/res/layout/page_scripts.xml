@@ -50,7 +50,7 @@
                 android:text="@string/filter_all" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/filterStore"
+                android:id="@+id/filterSynced"
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

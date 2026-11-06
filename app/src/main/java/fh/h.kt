@@ -5,8 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fuck.iab.HookedApp
 import com.fuck.iab.R
+import com.fuck.iab.RemoteScripts
 import com.fuck.iab.ScriptInfo
 import com.fuck.iab.ScriptStore
+import com.fuck.iab.ScriptSync
 import com.fuck.iab.__A_Z__
 import com.fuck.iab._c
 import com.fuck.iab._s_
@@ -24,21 +26,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.DateFormat
-import java.util.Date
 
 /** Everything the screens show about the module and its scripts. */
 data class UiState(
-    val connected: Boolean = false,
-    val framework: String = "",
     val scripts: List<ScriptInfo> = emptyList(),
     val hookedApps: List<HookedApp> = emptyList(),
-    val syncing: Boolean = false,
     /** True when the framework did not report the scope and the last known one is shown. */
-    val scopeUnconfirmed: Boolean = false,
-    val syncStatus: String = "",
-    val lastSync: Long = 0L,
-    val cached: Int = 0
+    val scopeUnconfirmed: Boolean = false
 ) {
     val enabled: Int get() = scripts.count { it.enabled }
     val scope: Int get() = hookedApps.size
@@ -178,41 +172,19 @@ class h(application: Application) : AndroidViewModel(application) {
     val state = _state.asStateFlow()
 
     private var currentService: XposedService? = null
-    private var autoSynced = false
-    private var lastScope: List<String> = emptyList()
 
     /** Called when the framework connection comes up or goes away. */
     fun attachService(service: XposedService?) {
         currentService = service
 
-        _state.update {
-            it.copy(
-                connected = service != null,
-                framework = service?.let { s -> "${s.frameworkName} ${s.frameworkVersionCode}" } ?: ""
-            )
-        }
-
         if (service == null) {
-            autoSynced = false
-            // The scripts are not cleared here. Without the service the list can only be built
-            // from user copies, and replacing it with that would hide every downloaded script
-            // until the framework binds again.
+            // The scripts are not cleared here. Without the service the user copies cannot be
+            // listed, and replacing the list with nothing would hide every bundled script.
             _state.update { it.copy(hookedApps = emptyList()) }
             return
         }
 
-        viewModelScope.launch {
-            // Only the first run, with nothing cached yet, fetches on its own. After that the
-            // store is only pulled when the refresh action is used.
-            val firstRun = withContext(Dispatchers.IO) { RemoteScriptSync.lastSync(service) == 0L }
-
-            if (firstRun && !autoSynced) {
-                autoSynced = true
-                sync()
-            } else {
-                refresh()
-            }
-        }
+        refresh()
     }
 
     /** Reloads the whole picture: scripts, scope and the processes the module is loaded in. */
@@ -226,8 +198,6 @@ class h(application: Application) : AndroidViewModel(application) {
                 it.copy(
                     scripts = loaded.scripts,
                     hookedApps = loaded.apps,
-                    cached = loaded.cached,
-                    lastSync = loaded.lastSync,
                     scopeUnconfirmed = !loaded.scopeConfirmed
                 )
             }
@@ -237,8 +207,6 @@ class h(application: Application) : AndroidViewModel(application) {
     private class Loaded(
         val scripts: List<ScriptInfo>,
         val apps: List<HookedApp>,
-        val cached: Int,
-        val lastSync: Long,
         val scopeConfirmed: Boolean
     )
 
@@ -270,53 +238,13 @@ class h(application: Application) : AndroidViewModel(application) {
         val context = getApplication<Application>()
 
         val (scope, scopeConfirmed) = resolveScope(context, service)
-        val scripts = ScriptStore.inventory(context, service, scope.toSet())
+        val scripts = ScriptStore.inventory(context, service, scope.toSet(), scopeConfirmed)
 
         return Loaded(
             scripts = scripts,
             apps = if (service != null) ScriptStore.hookedApps(context, service, scripts, scope) else emptyList(),
-            cached = if (service != null) RemoteScriptSync.cachedCount(service) else 0,
-            lastSync = if (service != null) RemoteScriptSync.lastSync(service) else 0,
             scopeConfirmed = scopeConfirmed && service != null
         )
-    }
-
-    private val _messages = Channel<String>(Channel.BUFFERED)
-
-    /** One shot results for the screens to show, currently the manual sync outcome. */
-    val messages = _messages.receiveAsFlow()
-
-    /** Pulls the published scripts, then reloads what the screens show. */
-    fun sync(manual: Boolean = false) {
-        val service = currentService ?: return
-        if (_state.value.syncing) return
-
-        _state.update { it.copy(syncing = true, syncStatus = getApplication<Application>().getString(R.string.syncing)) }
-
-        viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                try {
-                    Result.success(RemoteScriptSync.sync(service))
-                } catch (e: Exception) {
-                    Result.failure(e)
-                }
-            }
-
-            val status = result.fold(
-                onSuccess = {
-                    getApplication<Application>().getString(R.string.sync_result, it.downloaded, it.removed, it.total)
-                },
-                onFailure = {
-                    getApplication<Application>().getString(R.string.sync_failed, it.message ?: it.javaClass.simpleName)
-                }
-            )
-
-            _state.update { it.copy(syncing = false, syncStatus = status) }
-
-            if (manual) _messages.trySend(status)
-
-            refresh()
-        }
     }
 
     private var runningPoll: Job? = null
@@ -372,6 +300,44 @@ class h(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var autoSynced = false
+
+    /**
+     * A fresh install has nothing to show until the store is fetched, so the Scripts screen
+     * asks for one update the first time it finds the list empty. That happens once per run
+     * and only with a store and a service to write into, so it can never turn into a poll.
+     */
+    fun syncIfEmpty(scriptCount: Int) {
+        if (scriptCount > 0 || autoSynced) return
+        if (!RemoteScripts.configured || currentService == null) return
+
+        autoSynced = true
+
+        viewModelScope.launch {
+            try {
+                syncRemoteScripts()
+            } catch (e: Exception) {
+                // The empty list is already saying something is missing, and the update
+                // action stays there for a retry with its own error message.
+            }
+        }
+    }
+
+    /**
+     * Downloads the published scripts and reloads the list, so the new copies show up as
+     * synced. Throws when the store cannot be reached or the service is not connected.
+     */
+    suspend fun syncRemoteScripts(): ScriptSync.Result {
+        val service = currentService
+            ?: throw IllegalStateException(
+                getApplication<Application>().getString(R.string.toast_not_connected)
+            )
+
+        val result = withContext(Dispatchers.IO) { ScriptSync.sync(service) }
+        refresh()
+        return result
+    }
+
     fun setEnabled(packageName: String, enabled: Boolean) {
         val service = currentService ?: return
 
@@ -379,20 +345,6 @@ class h(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) { ScriptStore.setEnabled(service, packageName, enabled) }
             refresh()
         }
-    }
-
-    /** Result of the last sync in this process, or when the cached copy was fetched. */
-    fun syncStatusLabel(): String {
-        val state = _state.value
-
-        if (state.syncStatus.isNotEmpty()) return state.syncStatus
-
-        if (state.lastSync == 0L) {
-            return getApplication<Application>().getString(R.string.sync_never)
-        }
-
-        val when_ = DateFormat.getDateTimeInstance().format(Date(state.lastSync))
-        return getApplication<Application>().getString(R.string.sync_last, when_)
     }
 
     override fun onCleared() {
