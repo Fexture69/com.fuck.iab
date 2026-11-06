@@ -1,38 +1,38 @@
 {
   "format": 1,
-  "generatedAt": "2026-11-02T19:42:38.761Z",
+  "generatedAt": "2026-11-06T13:34:35.670Z",
   "scripts": [
     {
       "package": "app.simple.inure.play",
       "name": "Inure App Manager",
       "file": "app.simple.inure.play.js",
-      "sha256": "dfaee2337eee89925247b21101ed2eaaca46abc1632361dd7ccbd2860743f410",
-      "size": 1242,
+      "sha256": "3918a3fb4a175cdfa996126f3b162ecd083967695b8ddf3568bba2311d113268",
+      "size": 1243,
       "author": "you1mak"
     },
     {
-      "package": "com.BrainLadder.Amirza",
-      "name": "آمیرزا",
-      "file": "com.BrainLadder.Amirza.js",
-      "sha256": "d687b1eed9fdeb8edeb02bc58018016170a1b80aca74a29fef5159c6c8257be7",
-      "size": 406,
-      "author": "staleroot"
-    },
-    {
-      "package": "com.PoxelStudios.DudeTheftAuto",
-      "name": "Dude Theft Wars",
-      "file": "com.PoxelStudios.DudeTheftAuto.js",
-      "sha256": "f581ddea73c6c9ec390597bfa795f280115de2ea8f062787a6d471e390bce3f5",
-      "size": 513,
-      "author": "staleroot"
+      "package": "com.adguard.android-hook",
+      "name": null,
+      "file": "com.adguard.android-hook.js",
+      "sha256": "aed332ebc8c6c461d1165953add286bd96a5b8b6e0be5bed87128ec539c2b25b",
+      "size": 304250,
+      "author": null
     },
     {
       "package": "com.adguard.android",
       "name": "AdGuard",
       "file": "com.adguard.android.js",
-      "sha256": "6257b16e3476ea2bd994346244e21e0da47c9fc4c1b739cdd38f7c0244160635",
-      "size": 765,
+      "sha256": "cbcfb58587d0f39ca9be50c7ee3b029603c522c351d3ad5d374c50f92030ae24",
+      "size": 766,
       "author": "Fexture69"
+    },
+    {
+      "package": "com.BrainLadder.Amirza",
+      "name": "آمیرزا",
+      "file": "com.BrainLadder.Amirza.js",
+      "sha256": "5e3afdbcb33a338adda12d43e0d61903ad62e1f37538072ec39464a1436bcf34",
+      "size": 407,
+      "author": "staleroot"
     },
     {
       "package": "com.cloudflare.onedotonedotonedotone",
@@ -46,48 +46,56 @@
       "package": "com.kiloo.subwaysurf",
       "name": "Subway Surfers",
       "file": "com.kiloo.subwaysurf.js",
-      "sha256": "8cc4dc3d07447b68f53956e32e8c69a99e461b69800a702edbd71bad0331c19c",
-      "size": 689,
+      "sha256": "45caea5cd12b911fbcd930bbbb79ab432f61eeb10401439ea5b635c7269495e4",
+      "size": 690,
       "author": "staleroot"
     },
     {
       "package": "com.life360.android.safetymapd",
       "name": "Life360",
       "file": "com.life360.android.safetymapd.js",
-      "sha256": "9c75e9afcd95b55e4b8e2af9ecee659386834c301c2ba7c274b11c68357cc8a9",
-      "size": 2242,
+      "sha256": "95b31c64f3c763363e1b25d294b8207df50468d881324a1d431206e61c009ddb",
+      "size": 2243,
       "author": "Fexture69"
     },
     {
       "package": "com.mixapplications.ultimateusb",
       "name": "Ultimate USB",
       "file": "com.mixapplications.ultimateusb.js",
-      "sha256": "251e80c13ed49e07a65eee4ddf3f32edeba69ee65b18baac7b7b047bb5ff8654",
-      "size": 719,
+      "sha256": "1ac7df5ce7b7acd9bc377537c84201d635fc47debc386039a942b1235eb27da6",
+      "size": 720,
       "author": "staleroot"
     },
     {
       "package": "com.parallel.space.pro",
       "name": "Parallel Space Pro",
       "file": "com.parallel.space.pro.js",
-      "sha256": "705794c0859b1b24c468aafdd6726bd84cda4b8c7aaded608515d9a619a45d88",
-      "size": 1132,
+      "sha256": "575ce96e61cde525ae24ed58de3702692a8382b08b8dcfb2de704630d57ffb36",
+      "size": 1133,
       "author": "you1mak"
+    },
+    {
+      "package": "com.PoxelStudios.DudeTheftAuto",
+      "name": "Dude Theft Wars",
+      "file": "com.PoxelStudios.DudeTheftAuto.js",
+      "sha256": "aadba1ffc19d405baaf61184a8febc483f5a051f1a6ec87e5802ac12241d5453",
+      "size": 514,
+      "author": "staleroot"
     },
     {
       "package": "com.topfreegames.bikeracefreeworld",
       "name": "Bike Race",
       "file": "com.topfreegames.bikeracefreeworld.js",
-      "sha256": "e2451055753afe67288e636f388f6f97bdf1ae22a8348885386fdb8ed5d11825",
-      "size": 435,
+      "sha256": "184468f845bb37e627d82957aa37611447f91f1d5c9ea6b0b40dc0ba8ac1ab7d",
+      "size": 436,
       "author": "staleroot"
     },
     {
       "package": "io.github.sds100.keymapper",
       "name": "Key Mapper",
       "file": "io.github.sds100.keymapper.js",
-      "sha256": "33da6cc4c246f5486bf61dabfc108d2723d9e99717c1386ec8ceec96fc2bc3de",
-      "size": 2128,
+      "sha256": "c5545a9fa68a2f42ba552fcd54199b28765b99795a32271120e0e66a8e665a94",
+      "size": 2129,
       "author": "you1mak, staleroot"
     }
   ]

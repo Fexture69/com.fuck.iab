@@ -10,20 +10,20 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(dir, "node_modules", "frida-java-bridge", "lib", "class-model.js");
 
 function fail(what) {
-    console.error(`patch-bridge: could not find ${what} in the installed bridge`);
-    process.exit(1);
+    throw new Error(`patch-bridge: could not find ${what} in the installed bridge`);
 }
 
 if (!existsSync(file)) {
     console.warn("patch-bridge: frida-java-bridge is not installed, skipping");
-    process.exit(0);
 }
 
 let source = readFileSync(file, "utf8");
 
-if (source.includes("androidSdkLevel")) {
-    process.exit(0);
-}
+const alreadyPatched = source.includes("androidSdkLevel");
+
+if (alreadyPatched) {
+    console.log("patch-bridge: already patched, skipping");
+} else {
 
 const importLine = "from './android.js';";
 const importIndex = source.indexOf(importLine);
@@ -71,9 +71,10 @@ source = source.replace(artBlock, `  if (api.flavor === 'art') {
       artClassOffsets = [c.ifields, c.methods, c.sfields, c.copiedMethodsOffset];
     }`);
 
-const flagPattern = /(\n\s*)1,(\s*\n\s*\.\.\.artClassOffsets,)/;
+const flagPattern = /(\[\s*)0,(\s*\.\.\.artClassOffsets,)/;
 if (!flagPattern.test(source)) fail("the ART availability flag");
 source = source.replace(flagPattern, "$1useArt ? 1 : 0,$2");
 
 writeFileSync(file, source);
 console.log("patch-bridge: Android 17 class-model fallback applied");
+}
